@@ -1,0 +1,118 @@
+/*
+ * Copyright 2019 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+buildscript {
+    repositories {
+        jcenter()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    
+    dependencies {
+        classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:5.1.1'
+    }
+}
+
+ext {
+    archaiusVersion = '2.3.+'
+    assetjCoreVersion = '3.11.1'
+    guavaVersion = '18.+'
+    guiceVersion = '4.1.0'
+    jettyVersion = '9.4.12.v20180830'
+    jsonVersion = '20160810'
+    junitVersion = '4.10'
+    mantisClientVersion = '1.+'
+    mantisDiscoveryProtoVersion = '1.+'
+    mockitoVersion = '1.9.5'
+    s3Version = '1.11.566'
+    servletApiVersion = '3.1.0'
+    spectatorVersion = '0.92.+'
+    vavrVersion = '0.9.2'
+}
+
+apply plugin: 'nebula.netflixoss'
+apply plugin: 'idea'
+apply plugin: 'java-library'
+apply plugin: 'checkstyle'
+apply plugin: 'pmd'
+apply plugin: 'application'
+
+group = 'io.mantisrx'
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+if (project.hasProperty('useMavenLocal')) {
+    repositories {
+        mavenLocal()
+    }
+}
+
+repositories {
+    jcenter()
+}
+
+tasks.withType(Javadoc).all {
+    enabled = false
+}
+
+configurations {
+    implementation.exclude module: 'rxjava-core'
+    implementation.exclude group: 'javax.servlet', module: 'servlet-api'
+    implementation.exclude group: 'org.mortbay.jetty', module: 'servlet-api'
+}
+
+mainClassName = 'io.mantisrx.api.Main'
+
+dependencies {
+    implementation "io.mantisrx:mantis-discovery-proto:$mantisDiscoveryProtoVersion"
+    implementation "io.mantisrx:mantis-client:$mantisClientVersion"
+
+    implementation "com.netflix.archaius:archaius2-api:$archaiusVersion"
+    implementation "com.netflix.archaius:archaius2-guice:$archaiusVersion"
+    implementation "com.netflix.spectator:spectator-api:$spectatorVersion"
+
+    implementation "javax.servlet:javax.servlet-api:$servletApiVersion"
+
+    implementation "com.google.guava:guava:$guavaVersion"
+    implementation "com.google.inject:guice:$guiceVersion"
+
+    implementation "org.json:json:$jsonVersion"
+    implementation "io.vavr:vavr:$vavrVersion"
+
+    implementation "org.eclipse.jetty:jetty-server:$jettyVersion"
+    implementation "org.eclipse.jetty:jetty-servlet:$jettyVersion"
+    implementation "org.eclipse.jetty:jetty-servlets:$jettyVersion"
+    implementation "org.eclipse.jetty.websocket:websocket-server:$jettyVersion"
+
+    implementation "com.amazonaws:aws-java-sdk-s3:$s3Version"
+
+    testImplementation "junit:junit:$junitVersion"
+    testImplementation "org.assertj:assertj-core:$assetjCoreVersion"
+    testImplementation "org.mockito:mockito-all:$mockitoVersion"
+    testImplementation 'org.apache.httpcomponents:httpclient:4.5.3'
+    testImplementation 'org.apache.httpcomponents:httpcore:4.4.5'
+}
+
+configurations.all {
+    resolutionStrategy {
+        force "com.google.guava:guava:18.0"
+        force "javax.servlet:javax.servlet-api:$servletApiVersion"
+    }
+}
+
+apply from: file('gradle/check.gradle')
