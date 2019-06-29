@@ -31,12 +31,13 @@ ext {
     archaiusVersion = '2.3.+'
     assetjCoreVersion = '3.11.1'
     guavaVersion = '18.+'
+    gsonVersion = '2.8.+'
     guiceVersion = '4.1.0'
     jettyVersion = '9.4.12.v20180830'
     jsonVersion = '20160810'
     junitVersion = '4.10'
-    mantisClientVersion = '1.+'
-    mantisDiscoveryProtoVersion = '1.+'
+    mantisClientVersion = '1.2.+'
+    mantisDiscoveryProtoVersion = '1.2.+'
     mockitoVersion = '1.9.5'
     s3Version = '1.11.566'
     servletApiVersion = '3.1.0'
@@ -50,6 +51,16 @@ apply plugin: 'java-library'
 apply plugin: 'checkstyle'
 apply plugin: 'pmd'
 apply plugin: 'application'
+
+bintray {
+    pkg {
+        version {
+            mavenCentralSync {
+                sync = false
+            }
+        }
+    }
+}
 
 group = 'io.mantisrx'
 
@@ -88,6 +99,7 @@ dependencies {
 
     implementation "javax.servlet:javax.servlet-api:$servletApiVersion"
 
+    implementation "com.google.code.gson:gson:$gsonVersion"
     implementation "com.google.guava:guava:$guavaVersion"
     implementation "com.google.inject:guice:$guiceVersion"
 
