@@ -31,6 +31,7 @@ ext {
     archaiusVersion = '2.3.+'
     assetjCoreVersion = '3.11.1'
     guavaVersion = '18.+'
+    gsonVersion = '2.8.+'
     guiceVersion = '4.1.0'
     jettyVersion = '9.4.12.v20180830'
     jsonVersion = '20160810'
@@ -98,6 +99,7 @@ dependencies {
 
     implementation "javax.servlet:javax.servlet-api:$servletApiVersion"
 
+    implementation "com.google.code.gson:gson:$gsonVersion"
     implementation "com.google.guava:guava:$guavaVersion"
     implementation "com.google.inject:guice:$guiceVersion"
 
