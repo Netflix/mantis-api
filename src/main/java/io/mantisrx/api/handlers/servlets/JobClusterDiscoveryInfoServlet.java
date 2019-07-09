@@ -26,9 +26,11 @@ import javax.servlet.http.HttpServletResponse;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.archaius.api.PropertyRepository;
+import com.netflix.spectator.api.Counter;
 import com.netflix.spectator.api.Registry;
 import io.mantisrx.api.SessionContext;
 import io.mantisrx.api.SessionContextBuilder;
+import io.mantisrx.api.SpectatorUtils;
 import io.mantisrx.api.WorkerThreadPool;
 import io.mantisrx.api.handlers.utils.HttpUtils;
 import io.mantisrx.api.handlers.utils.JobDiscoveryInfoManager;
@@ -79,6 +81,7 @@ public class JobClusterDiscoveryInfoServlet extends HttpServlet {
                 request.getRequestURI() + "?" + request.getQueryString(), request.getMethod());
 
         String jobCluster = PathUtils.getTokenAfter(request.getPathInfo(), "");
+        SpectatorUtils.buildAndRegisterCounter(registry, "jobClusterDiscoveryInfoRequest", "endpoint", endpointName, "jobCluster", jobCluster).increment();
         if (jobCluster == null || jobCluster.isEmpty()) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             try {
@@ -88,6 +91,7 @@ public class JobClusterDiscoveryInfoServlet extends HttpServlet {
                 logger.warn("Couldn't write message (\"Job cluster not specified\") to client session {}",
                         httpSessionCtx.getId(), e);
             }
+            SpectatorUtils.buildAndRegisterCounter(registry, "jobClusterDiscoveryInfoFailed", "endpoint", endpointName, "reason", "jobClusterNullOrEmpty").increment();
             httpSessionCtx.endSession();
             return;
         }
@@ -99,6 +103,8 @@ public class JobClusterDiscoveryInfoServlet extends HttpServlet {
                         return mapper.writeValueAsString(jSchedInfo);
                     } catch (Exception e) {
                         logger.info("failed to serialize job discovery info {}", jSchedInfo);
+                        SpectatorUtils.buildAndRegisterCounter(registry, "jobClusterDiscoveryInfoFailed", "endpoint", endpointName,
+                                                               "reason", "SerializationFailed", "jobCluster", jobCluster).increment();
                         return null;
                     }
 
@@ -109,6 +115,8 @@ public class JobClusterDiscoveryInfoServlet extends HttpServlet {
                 .doOnError((t) -> {
                     logger.warn("Timed out relaying request for session id " + httpSessionCtx.getId() +
                             " url=" + request.getRequestURI());
+                    SpectatorUtils.buildAndRegisterCounter(registry, "jobClusterDiscoveryInfoFailed", "endpoint", endpointName,
+                                                           "reason", "TimedOut", "jobCluster", jobCluster).increment();
                     response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                     try {
                         response.getOutputStream().print(t.getMessage());
