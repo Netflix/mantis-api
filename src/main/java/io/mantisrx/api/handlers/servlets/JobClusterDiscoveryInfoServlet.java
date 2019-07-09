@@ -81,7 +81,6 @@ public class JobClusterDiscoveryInfoServlet extends HttpServlet {
                 request.getRequestURI() + "?" + request.getQueryString(), request.getMethod());
 
         String jobCluster = PathUtils.getTokenAfter(request.getPathInfo(), "");
-        SpectatorUtils.buildAndRegisterCounter(registry, "jobClusterDiscoveryInfoRequest", "endpoint", endpointName, "jobCluster", jobCluster).increment();
         if (jobCluster == null || jobCluster.isEmpty()) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             try {
@@ -95,6 +94,7 @@ public class JobClusterDiscoveryInfoServlet extends HttpServlet {
             httpSessionCtx.endSession();
             return;
         }
+        SpectatorUtils.buildAndRegisterCounter(registry, "jobClusterDiscoveryInfoRequest", "endpoint", endpointName, "jobCluster", jobCluster).increment();
 
         String jobDiscoveryInfo = JobDiscoveryInfoManager.getInstance(mantisClient, registry)
                 .jobDiscoveryInfoStream(new JobDiscoveryLookupKey(JobDiscoveryLookupKey.LookupType.JOB_CLUSTER, jobCluster))
