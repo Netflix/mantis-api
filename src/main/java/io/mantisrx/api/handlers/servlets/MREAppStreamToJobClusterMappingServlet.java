@@ -31,6 +31,7 @@ import com.netflix.spectator.api.Counter;
 import com.netflix.spectator.api.Registry;
 import io.mantisrx.api.SessionContext;
 import io.mantisrx.api.SessionContextBuilder;
+import io.mantisrx.api.SpectatorUtils;
 import io.mantisrx.api.WorkerThreadPool;
 import io.mantisrx.api.handlers.utils.HttpUtils;
 import io.mantisrx.api.handlers.utils.JacksonObjectMapper;
@@ -53,14 +54,16 @@ public class MREAppStreamToJobClusterMappingServlet extends HttpServlet {
 
     private final Counter appJobClusterMappingNullCount;
     private final Counter appJobClusterMappingFailCount;
+    private final Counter appJobClusterMappingRequestCount;
     private final AtomicReference<AppJobClustersMap> appJobClusterMappings = new AtomicReference<>();
 
     public MREAppStreamToJobClusterMappingServlet(PropertyRepository propertyRepository, Registry registry, WorkerThreadPool workerThreadPool) {
         this.workerThreadPool = workerThreadPool;
         this.registry = registry;
         this.propertyRepository = propertyRepository;
-        this.appJobClusterMappingNullCount = registry.counter("appJobClusterMappingNullCount");
-        this.appJobClusterMappingFailCount = registry.counter("appJobClusterMappingFailCount");
+        this.appJobClusterMappingNullCount = registry.counter("appJobClusterMappingNull");
+        this.appJobClusterMappingFailCount = registry.counter("appJobClusterMappingFail");
+        this.appJobClusterMappingRequestCount = registry.counter("appJobClusterMappingRequest", "app", "unknown");
         Property<String> appJobClustersProp = propertyRepository.get(APP_JOB_CLUSTER_MAPPING_KEY, String.class);
         updateAppJobClustersMapping(appJobClustersProp.get());
         appJobClustersProp.subscribe(appJobClusterStr -> updateAppJobClustersMapping(appJobClusterStr));
@@ -108,8 +111,11 @@ public class MREAppStreamToJobClusterMappingServlet extends HttpServlet {
                 }
                 AppJobClustersMap appJobClusters;
                 if (qp.containsKey(APPNAME_QUERY_PARAM) && qp.get(APPNAME_QUERY_PARAM) != null) {
+                    List<String> appNames = qp.get(APPNAME_QUERY_PARAM);
+                    appNames.forEach(app -> SpectatorUtils.buildAndRegisterCounter(registry, "appJobClusterMappingRequest", "app", app).increment());
                     appJobClusters = appJobClustersMap.getFilteredAppJobClustersMap(qp.get(APPNAME_QUERY_PARAM));
                 } else {
+                    appJobClusterMappingRequestCount.increment();
                     appJobClusters = appJobClustersMap;
                 }
                 response.getOutputStream().print(JacksonObjectMapper.getInstance().writeValueAsString(appJobClusters));
