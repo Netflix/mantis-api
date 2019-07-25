@@ -193,6 +193,7 @@ public class JobSinkServletConnector {
 
         Func0<Observable<Observable<MantisServerSentEvent>>> localResultsGetter =
                 () -> JobSinkConnector.getResults(isJobId, mantisClient, target, sinkParameters);
+
         Func1<String, Observable<MantisServerSentEvent>> remoteResultsGetter = region -> remoteSinkConnector.getResults(
                 region, isJobId ? JobConnectById.handlerName : JobConnectByName.handlerName,
                 target, sinkParameters
@@ -252,6 +253,7 @@ public class JobSinkServletConnector {
 
         Func0<Observable<Observable<MantisServerSentEvent>>> localResultsGetter =
                 () -> JobSinkConnector.getResults(isJobId, mantisClient, target, sinkParameters);
+
         Func1<String, Observable<MantisServerSentEvent>> remoteResultsGetter = region -> remoteSinkConnector.getResults(
                 region, isJobId ? JobConnectById.handlerName : JobConnectByName.handlerName,
                 target, sinkParameters

@@ -35,6 +35,7 @@ import io.mantisrx.api.handlers.utils.HttpUtils;
 import io.mantisrx.api.handlers.utils.PathUtils;
 import io.mantisrx.api.handlers.ws.JobConnectWebSocket;
 import io.mantisrx.client.MantisClient;
+import io.mantisrx.runtime.MantisJobState;
 import org.eclipse.jetty.servlets.EventSource;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeRequest;
@@ -106,24 +107,44 @@ public class JobConnectByIdWebSocketServlet extends SSEWebSocketServletBase {
 
     @Override
     public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        EventSource eventSource = newEventSource(request, response);
-        super.respond(request, response);
-        AsyncContext async = request.startAsync();
-        // Infinite timeout because the continuation is never resumed,
-        // but only completed on close
-        async.setTimeout(0);
-        SSEWebSocketServletBase.EventSourceEmitter emitter = new SSEWebSocketServletBase.EventSourceEmitter(eventSource, async);
-        emitter.scheduleHeartBeat();
-        open(eventSource, emitter);
 
-        final Map<String, List<String>> qryParams = HttpUtils.getQryParams(request.getQueryString());
-        final SessionContextBuilder contextBuilder = SessionContextBuilder.getInstance(propertyRepository, registry, workerThreadPool);
-        final SessionContext httpSessionCtx = contextBuilder.createHttpSessionCtx(request.getRemoteAddr(),
-                request.getRequestURI() + "?" + request.getQueryString(), request.getMethod());
-        final JobSinkServletConnector connector =
-                new JobSinkServletConnector(mantisClient, true, httpSessionCtx.getStats(), qryParams, httpSessionCtx, remoteSinkConnector, propertyRepository, registry, workerThreadPool);
+        String target = PathUtils.getTokenAfter(request.getPathInfo(), "");
 
-        connector.connect(PathUtils.getTokenAfter(request.getPathInfo(), ""), emitter);
+        String clusterName = target.substring(0, target.lastIndexOf('-'));
+        boolean jobIdExists = mantisClient.getJobsOfNamedJob(clusterName, MantisJobState.MetaState.Active)
+                .filter(jobId -> target.equals(jobId))
+                .count()
+                .toBlocking()
+                .first() > 0;
+
+        if (!jobIdExists) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            try {
+                response.getWriter().println("JobId " + target + " does not exist.");
+                response.getWriter().close();
+            } catch (Exception ex) {
+                logger.error(ex.getMessage());
+            }
+        } else {
+            EventSource eventSource = newEventSource(request, response);
+            super.respond(request, response);
+            AsyncContext async = request.startAsync();
+            // Infinite timeout because the continuation is never resumed,
+            // but only completed on close
+            async.setTimeout(0);
+            SSEWebSocketServletBase.EventSourceEmitter emitter = new SSEWebSocketServletBase.EventSourceEmitter(eventSource, async);
+            emitter.scheduleHeartBeat();
+            open(eventSource, emitter);
+
+            final Map<String, List<String>> qryParams = HttpUtils.getQryParams(request.getQueryString());
+            final SessionContextBuilder contextBuilder = SessionContextBuilder.getInstance(propertyRepository, registry, workerThreadPool);
+            final SessionContext httpSessionCtx = contextBuilder.createHttpSessionCtx(request.getRemoteAddr(),
+                    request.getRequestURI() + "?" + request.getQueryString(), request.getMethod());
+            final JobSinkServletConnector connector =
+                    new JobSinkServletConnector(mantisClient, true, httpSessionCtx.getStats(), qryParams, httpSessionCtx, remoteSinkConnector, propertyRepository, registry, workerThreadPool);
+
+            connector.connect(target, emitter);
+        }
     }
 
 }

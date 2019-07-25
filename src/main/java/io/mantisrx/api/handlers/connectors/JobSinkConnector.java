@@ -19,6 +19,7 @@ package io.mantisrx.api.handlers.connectors;
 import java.io.UnsupportedEncodingException;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -53,6 +54,7 @@ import io.mantisrx.client.MantisClient;
 import io.mantisrx.client.SinkConnectionFunc;
 import io.mantisrx.client.SseSinkConnectionFunction;
 import io.mantisrx.common.MantisServerSentEvent;
+import io.mantisrx.runtime.MantisJobState;
 import io.mantisrx.runtime.parameter.SinkParameters;
 import io.mantisrx.server.master.client.MasterClientWrapper;
 import io.netty.buffer.ByteBuf;
@@ -494,8 +496,9 @@ public class JobSinkConnector {
 
     public static Observable<Observable<MantisServerSentEvent>> getResults(boolean isJobId, MantisClient mantisClient,
                                                                            final String target, SinkParameters sinkParameters) {
+
         final AtomicBoolean hasError = new AtomicBoolean();
-        return isJobId ?
+        return  isJobId ?
                 mantisClient.getSinkClientByJobId(target, getSseConnFunc(target, sinkParameters), null).getResults() :
                 mantisClient.getSinkClientByJobName(target, getSseConnFunc(target, sinkParameters), null)
                         .switchMap(serverSentEventSinkClient -> {
@@ -505,7 +508,6 @@ public class JobSinkConnector {
                             }
                             return serverSentEventSinkClient.getResults();
                         })
-                        .takeWhile(o -> !hasError.get())
-                ;
+                        .takeWhile(o -> !hasError.get());
     }
 }
