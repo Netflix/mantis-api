@@ -21,6 +21,7 @@ import com.netflix.archaius.api.PropertyRepository;
 
 import com.netflix.spectator.api.Registry;
 
+import io.mantisrx.api.handlers.servlets.AppStreamDiscoveryServlet;
 import io.mantisrx.client.MantisClient;
 
 import org.eclipse.jetty.server.ConnectionFactory;
@@ -141,6 +142,9 @@ public class MantisAPIServer {
 
         servletContextHandler.addServlet(new ServletHolder(new HealthCheckServlet(propertyRepository, registry, workerThreadPool)), "/healthcheck");
         servletContextHandler.addServlet(new ServletHolder(new MREAppStreamToJobClusterMappingServlet(propertyRepository, registry, workerThreadPool)), MREAppStreamToJobClusterMappingServlet.PATH_SPEC + "/*");
+        servletContextHandler.addServlet(new ServletHolder(new AppStreamDiscoveryServlet(propertyRepository, registry, workerThreadPool, mantisClient)), AppStreamDiscoveryServlet.PATH_SPEC);
+
+
         List<String> helpMsgs = new ArrayList<>();
 
         servletContextHandler.addServlet(new ServletHolder(new JobConnectByIdWebSocketServlet(this.mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool)), "/" + JobConnectByIdWebSocketServlet.endpointName + "/*");
