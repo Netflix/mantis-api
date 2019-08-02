@@ -165,7 +165,6 @@ public class RegionsHandlerWebSocketServlet extends SSEWebSocketServletBase {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
-        logger.info("CODY: GOT HERE");
         final SessionContextBuilder contextBuilder = SessionContextBuilder.getInstance(propertyRepository, registry, workerThreadPool);
         final SessionContext httpSessionCtx = contextBuilder.createHttpSessionCtx(request.getRemoteAddr(),
                 request.getRequestURI() + "?" + request.getQueryString(), request.getMethod());
