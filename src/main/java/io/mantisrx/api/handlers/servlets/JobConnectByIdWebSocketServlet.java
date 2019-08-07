@@ -24,6 +24,8 @@ import javax.servlet.AsyncContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.archaius.api.PropertyRepository;
 import com.netflix.spectator.api.Registry;
 import io.mantisrx.api.SessionContext;
@@ -43,6 +45,7 @@ import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import rx.Observable;
 
 
 public class JobConnectByIdWebSocketServlet extends SSEWebSocketServletBase {
@@ -59,6 +62,7 @@ public class JobConnectByIdWebSocketServlet extends SSEWebSocketServletBase {
     private transient final PropertyRepository propertyRepository;
     private transient final Registry registry;
     private transient final WorkerThreadPool workerThreadPool;
+    private transient final ObjectMapper objectMapper = new ObjectMapper();
 
     public JobConnectByIdWebSocketServlet(MantisClient mantisClient, RemoteSinkConnector remoteSinkConnector, PropertyRepository propertyRepository, Registry registry, WorkerThreadPool workerThreadPool) {
         super(propertyRepository);
@@ -111,11 +115,7 @@ public class JobConnectByIdWebSocketServlet extends SSEWebSocketServletBase {
         String target = PathUtils.getTokenAfter(request.getPathInfo(), "");
 
         String clusterName = target.substring(0, target.lastIndexOf('-'));
-        boolean jobIdExists = mantisClient.getJobsOfNamedJob(clusterName, MantisJobState.MetaState.Active)
-                .filter(jobId -> target.equals(jobId))
-                .count()
-                .toBlocking()
-                .first() > 0;
+        boolean jobIdExists = jobIdExists(target, clusterName);
 
         if (!jobIdExists) {
             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
@@ -147,4 +147,27 @@ public class JobConnectByIdWebSocketServlet extends SSEWebSocketServletBase {
         }
     }
 
+    private boolean jobIdExists(String target, String clusterName) {
+        return mantisClient.getJobsOfNamedJob(clusterName, MantisJobState.MetaState.Active)
+                    .doOnNext(payload -> logger.info(payload))
+                    .flatMap(payload -> {
+
+                        try {
+                            List<Map<String, Object>> decoded =
+                                    objectMapper.readValue(payload, new TypeReference<List<Map<String, Object>>>() {});
+                            return Observable.from(decoded);
+
+                        } catch (Exception ex) {
+                            logger.error(ex.getMessage());
+                        }
+
+                        return Observable.empty();
+                    })
+                    .map(obj -> ((Map<String, Object>)obj.get("jobMetadata")).get("jobId").toString())
+                    .doOnNext(jobId -> logger.info(jobId))
+                    .filter(jobId -> target.equals(jobId))
+                    .count()
+                    .toBlocking()
+                    .first() > 0;
+    }
 }
