@@ -159,7 +159,7 @@ public class MantisAPIServer {
 
         servletContextHandler.addServlet(new ServletHolder(new JobSchedulingInfoServlet(this.mantisClient, propertyRepository, registry, workerThreadPool)), "/api/v1/jobs/" + JobSchedulingInfoServlet.endpointName + "/*");
         helpMsgs.add(JobSchedulingInfoServlet.helpMsg);
-        servletContextHandler.addServlet(new ServletHolder(new JobClusterDiscoveryInfoServlet(this.mantisClient, propertyRepository, registry, workerThreadPool)), "/" + JobClusterDiscoveryInfoServlet.endpointName + "/*");
+        servletContextHandler.addServlet(new ServletHolder(new JobClusterDiscoveryInfoServlet(masterClientWrapper, this.mantisClient, propertyRepository, registry, workerThreadPool)), "/" + JobClusterDiscoveryInfoServlet.endpointName + "/*");
         helpMsgs.add(JobClusterDiscoveryInfoServlet.helpMsg);
         servletContextHandler.addServlet(new ServletHolder(new JobClusterDiscoveryInfoWebSocketServlet(this.mantisClient, propertyRepository, registry, workerThreadPool)), "/" + JobClusterDiscoveryInfoWebSocketServlet.endpointName + "/*");
         servletContextHandler.addServlet(new ServletHolder(new JobClusterDiscoveryInfoWebSocketServlet(this.mantisClient, propertyRepository, registry, workerThreadPool)), "/api/v1/" + JobClusterDiscoveryInfoWebSocketServlet.endpointName + "/*");
