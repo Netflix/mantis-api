@@ -4,6 +4,6 @@
 ./gradlew clean installDist
 
 # build the docker image
-docker build -t dev/mantisapi .
+docker build -t netflixoss/mantisapi .
 
-echo "Created Docker image 'dev/mantisapi'"
+echo "Created Docker image 'netflixoss/mantisapi'"
