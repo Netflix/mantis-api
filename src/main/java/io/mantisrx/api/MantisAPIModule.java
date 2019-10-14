@@ -103,9 +103,13 @@ public class MantisAPIModule extends AbstractModule {
 
         bind(WorkerThreadPool.class).toInstance(new WorkerThreadPool(registry, threads));
         bind(StreamingClientFactory.class).to(DummyStreamingClientFactory.class);
-
-        bind(ArtifactManager.class).to(InMemoryArtifactManager.class);
     }
+
+    @Provides
+    ArtifactManager getArtifactManager(PropertyRepository propertyRepository) {
+        return new LocalFileBasedArtifactManager(propertyRepository);
+    }
+
 
     @Provides
     MasterClientWrapper getMasterClientWrapper(Properties properties) {

@@ -32,6 +32,8 @@ public class PropertyNames {
     public static final String mantisAPICacheExpirySeconds = "mantisapi.cache.expiry.secs";
     public static final String mantisAPICacheSize = "mantisapi.cache.size";
     public static final String mantisAPICacheEnabled = "mantisapi.cache.enabled";
+    public static final String artifactRepositoryLocation = "mantisapi.artifact.disk.cache.location";
+    public static final String artifactCacheEnabled = "mantisapi.artifact.disk.cache.enabled";
     public static final String mantisLatestJobDiscoveryInfoEndpointEnabled = "mantis.latest.job.discovery.info.get.enabled";
     public static final String mantisLatestJobDiscoveryCacheTtlMs = "mantis.latest.job.discovery.info.cache.ttl.ms";
     public static final String mantisLatestJobDiscoveryMasterTimeoutMs = "mantis.latest.job.discovery.info.master.timeout.ms";
