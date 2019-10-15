@@ -16,12 +16,17 @@
 
 package io.mantisrx.api.handlers.domain;
 
+import java.util.Objects;
+
+
 public class Artifact {
     private long sizeInBytes;
     private String fileName;
     private byte[] content;
 
     public Artifact(String fileName, long sizeInBytes, byte[] content) {
+        Objects.requireNonNull(fileName, "File name cannot be null");
+        Objects.requireNonNull(content, "Content cannot be null");
         this.fileName = fileName;
         this.sizeInBytes = sizeInBytes;
         this.content = content;
