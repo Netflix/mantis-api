@@ -42,9 +42,8 @@ import io.mantisrx.api.WorkerThreadPool;
 import io.mantisrx.api.handlers.ServletConx;
 import io.mantisrx.api.handlers.connectors.JobSinkConnector;
 import io.mantisrx.api.handlers.connectors.RemoteSinkConnector;
-import io.mantisrx.api.handlers.servlets.JobConnectById;
 import io.mantisrx.api.handlers.servlets.JobConnectByIdWebSocketServlet;
-import io.mantisrx.api.handlers.servlets.JobConnectByName;
+import io.mantisrx.api.handlers.servlets.JobConnectByNameWebSocketServlet;
 import io.mantisrx.api.handlers.utils.MantisClientUtil;
 import io.mantisrx.api.handlers.utils.QueryParams;
 import io.mantisrx.api.metrics.Stats;
@@ -111,7 +110,7 @@ public class JobConnectWebSocket extends WebSocketAdapter {
 
         this.registry = registry;
         this.wsQueueSizeGauge = SpectatorUtils.buildAndRegisterGauge(registry, "wsQueueSize");
-        this.enpointConnectionCounter = SpectatorUtils.buildAndRegisterCounter(registry, JobConnectByIdWebSocketServlet.endpointName);
+        this.enpointConnectionCounter = SpectatorUtils.buildAndRegisterCounter(registry, JobConnectByIdWebSocketServlet.handlerName);
     }
 
     public void setTarget(String target) {
@@ -166,7 +165,7 @@ public class JobConnectWebSocket extends WebSocketAdapter {
         Func0<Observable<Observable<MantisServerSentEvent>>> localResultsGetter =
                 () -> JobSinkConnector.getResults(isJobId, mantisClient, target, sinkParameters);
         Func1<String, Observable<MantisServerSentEvent>> remoteResultsGetter = region -> remoteSinkConnector.getResults(
-                region, isJobId ? JobConnectById.handlerName : JobConnectByName.handlerName,
+                region, isJobId ? JobConnectByIdWebSocketServlet.handlerName : JobConnectByNameWebSocketServlet.handlerName,
                 target, sinkParameters
         );
         ServletConx conx = WebsocketUtils.getWSConx(sess);

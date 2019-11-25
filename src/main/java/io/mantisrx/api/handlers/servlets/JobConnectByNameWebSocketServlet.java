@@ -51,8 +51,8 @@ public class JobConnectByNameWebSocketServlet extends SSEWebSocketServletBase {
     private static Logger logger = LoggerFactory.getLogger(JobConnectByNameWebSocketServlet.class);
     private transient final MantisClient mantisClient;
     private transient final RemoteSinkConnector remoteSinkConnector;
-    public static final String endpointName = "jobconnectbyname";
-    public static final String helpMsg = endpointName + "/<JobName>";
+    public static final String handlerName = "jobconnectbyname";
+    public static final String helpMsg = handlerName + "/<JobName>";
 
     private static final long serialVersionUID = JobConnectByNameWebSocketServlet.class.hashCode();
     private transient final Registry registry;
@@ -76,7 +76,7 @@ public class JobConnectByNameWebSocketServlet extends SSEWebSocketServletBase {
             final SessionContextBuilder contextBuilder = SessionContextBuilder.getInstance(propertyRepository, registry, workerThreadPool);
             final SessionContext webSocketSessionCtx = contextBuilder.createWebSocketSessionCtx(req.getRemoteAddress(),
                     req.getRequestURI() + "?" + req.getQueryString());
-            return createJobConnectWebSocket(webSocketSessionCtx, qryParams, PathUtils.getTokenAfter(req.getRequestPath(), "/" + endpointName));
+            return createJobConnectWebSocket(webSocketSessionCtx, qryParams, PathUtils.getTokenAfter(req.getRequestPath(), "/" + handlerName));
         });
     }
 

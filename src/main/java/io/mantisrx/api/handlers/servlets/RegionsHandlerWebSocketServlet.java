@@ -144,9 +144,9 @@ public class RegionsHandlerWebSocketServlet extends SSEWebSocketServletBase {
             String target = PathUtils.getTokenAfter(req.getRequestURI().toString(), cmd);
 
             switch (cmd) {
-            case JobConnectByIdWebSocketServlet.endpointName:
+            case JobConnectByIdWebSocketServlet.handlerName:
                 return connectByIdServlet.createJobConnectWebSocket(webSocketSessionCtx, qryParams, target);
-            case JobConnectByNameWebSocketServlet.endpointName:
+            case JobConnectByNameWebSocketServlet.handlerName:
                 return connectByNameServlet.createJobConnectWebSocket(webSocketSessionCtx, qryParams, target);
             case JobSubmitAndConnectServlet.endpointName:
                 return submitAndConnectServlet.createJobSubmitAndConnectWebSocket(webSocketSessionCtx, qryParams);
@@ -184,13 +184,13 @@ public class RegionsHandlerWebSocketServlet extends SSEWebSocketServletBase {
         final String target = PathUtils.getTokenAfter(request.getRequestURI(), cmd);
 
         switch (cmd) {
-        case JobConnectByIdWebSocketServlet.endpointName:
+        case JobConnectByIdWebSocketServlet.handlerName:
             JobSinkServletConnector sinkServletConnector = new JobSinkServletConnector(mantisClient, true,
                     httpSessionCtx.getStats(), queryParams, httpSessionCtx, remoteSinkConnector, propertyRepository, registry, workerThreadPool);
             EventSource.Emitter emitter = getEmitter(request, response);
             sinkServletConnector.connect(target, emitter);
             break;
-        case JobConnectByNameWebSocketServlet.endpointName:
+        case JobConnectByNameWebSocketServlet.handlerName:
             sinkServletConnector = new JobSinkServletConnector(mantisClient, false, httpSessionCtx.getStats(),
                     queryParams, httpSessionCtx, remoteSinkConnector, propertyRepository, registry, workerThreadPool);
             emitter = getEmitter(request, response);

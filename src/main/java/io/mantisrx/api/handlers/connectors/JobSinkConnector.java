@@ -40,8 +40,8 @@ import com.netflix.spectator.api.Tag;
 import com.netflix.spectator.impl.AtomicDouble;
 import io.mantisrx.api.PropertyNames;
 import io.mantisrx.api.SpectatorUtils;
-import io.mantisrx.api.handlers.servlets.JobConnectById;
-import io.mantisrx.api.handlers.servlets.JobConnectByName;
+import io.mantisrx.api.handlers.servlets.JobConnectByIdWebSocketServlet;
+import io.mantisrx.api.handlers.servlets.JobConnectByNameWebSocketServlet;
 import io.mantisrx.api.handlers.servlets.MantisAPIRequestHandler;
 import io.mantisrx.api.handlers.utils.HttpUtils;
 import io.mantisrx.api.handlers.utils.MantisClientUtil;
@@ -130,7 +130,7 @@ public class JobSinkConnector {
                         public void call(Subscriber<? super MantisServerSentEvent> subscriber) {
                             remoteSinkConnector.getResults(
                                     region,
-                                    isJobId ? JobConnectById.handlerName : JobConnectByName.handlerName,
+                                    isJobId ? JobConnectByIdWebSocketServlet.handlerName : JobConnectByNameWebSocketServlet.handlerName,
                                     target,
                                     sinkParameters
                             )

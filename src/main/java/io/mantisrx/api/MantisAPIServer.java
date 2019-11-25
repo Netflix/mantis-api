@@ -58,7 +58,6 @@ import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.mantisrx.api.InMemoryArtifactManager;
 import io.mantisrx.api.filters.CustomInetAccessHandler;
 import io.mantisrx.api.filters.ReadOnlyFilter;
 import io.mantisrx.api.handlers.connectors.RemoteSinkConnector;
@@ -147,8 +146,8 @@ public class MantisAPIServer {
 
         List<String> helpMsgs = new ArrayList<>();
 
-        servletContextHandler.addServlet(new ServletHolder(new JobConnectByIdWebSocketServlet(this.mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool)), "/" + JobConnectByIdWebSocketServlet.endpointName + "/*");
-        servletContextHandler.addServlet(new ServletHolder(new JobConnectByIdWebSocketServlet(this.mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool)), "/api/v1/" + JobConnectByIdWebSocketServlet.endpointName + "/*");
+        servletContextHandler.addServlet(new ServletHolder(new JobConnectByIdWebSocketServlet(this.mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool)), "/" + JobConnectByIdWebSocketServlet.handlerName + "/*");
+        servletContextHandler.addServlet(new ServletHolder(new JobConnectByIdWebSocketServlet(this.mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool)), "/api/v1/" + JobConnectByIdWebSocketServlet.handlerName + "/*");
         helpMsgs.add(JobConnectByIdWebSocketServlet.helpMsg);
 
         servletContextHandler.addServlet(new ServletHolder(new JobStatusWebSocketServlet(this.mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool)), "/" + JobStatusWebSocketServlet.endpointName + "/*");
@@ -164,8 +163,8 @@ public class MantisAPIServer {
         servletContextHandler.addServlet(new ServletHolder(new JobClusterDiscoveryInfoWebSocketServlet(this.mantisClient, propertyRepository, registry, workerThreadPool)), "/" + JobClusterDiscoveryInfoWebSocketServlet.endpointName + "/*");
         servletContextHandler.addServlet(new ServletHolder(new JobClusterDiscoveryInfoWebSocketServlet(this.mantisClient, propertyRepository, registry, workerThreadPool)), "/api/v1/" + JobClusterDiscoveryInfoWebSocketServlet.endpointName + "/*");
         helpMsgs.add(JobClusterDiscoveryInfoWebSocketServlet.helpMsg);
-        servletContextHandler.addServlet(new ServletHolder(new JobConnectByNameWebSocketServlet(this.mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool)), "/" + JobConnectByNameWebSocketServlet.endpointName + "/*");
-        servletContextHandler.addServlet(new ServletHolder(new JobConnectByNameWebSocketServlet(this.mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool)), "/api/v1/" + JobConnectByNameWebSocketServlet.endpointName + "/*");
+        servletContextHandler.addServlet(new ServletHolder(new JobConnectByNameWebSocketServlet(this.mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool)), "/" + JobConnectByNameWebSocketServlet.handlerName + "/*");
+        servletContextHandler.addServlet(new ServletHolder(new JobConnectByNameWebSocketServlet(this.mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool)), "/api/v1/" + JobConnectByNameWebSocketServlet.handlerName + "/*");
         helpMsgs.add(JobConnectByNameWebSocketServlet.helpMsg);
         servletContextHandler.addServlet(new ServletHolder(new JobSubmitAndConnectServlet(this.mantisClient, masterClientWrapper, remoteSinkConnector, registry, propertyRepository, workerThreadPool)), "/" + JobSubmitAndConnectServlet.endpointName + "/*");
         servletContextHandler.addServlet(new ServletHolder(new JobSubmitAndConnectServlet(this.mantisClient, masterClientWrapper, remoteSinkConnector, registry, propertyRepository, workerThreadPool)), "/api/v1/" + JobSubmitAndConnectServlet.endpointName + "/*");
