@@ -45,13 +45,7 @@ import org.apache.commons.configuration.AbstractConfiguration;
 
 import java.util.Properties;
 
-/**
- * Zuul Sample Module
- *
- * Author: Arthur Gonigberg
- * Date: November 20, 2017
- */
-public class MantisApiModule extends AbstractModule {
+public class MantisAPIModule extends AbstractModule {
     @Override
     protected void configure() {
         // sample specific bindings
