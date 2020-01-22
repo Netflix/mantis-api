@@ -27,24 +27,6 @@ buildscript {
     }
 }
 
-ext {
-    archaiusVersion = '2.3.+'
-    assetjCoreVersion = '3.11.1'
-    guavaVersion = '18.+'
-    gsonVersion = '2.8.+'
-    guiceVersion = '4.1.0'
-    jettyVersion = '9.4.12.v20180830'
-    jsonVersion = '20160810'
-    junitVersion = '4.10'
-    mantisClientVersion = '1.2.17'
-    mantisDiscoveryProtoVersion = '1.2.+'
-    mockitoVersion = '1.9.5'
-    s3Version = '1.11.566'
-    servletApiVersion = '3.1.0'
-    spectatorVersion = '0.92.+'
-    vavrVersion = '0.9.2'
-}
-
 apply plugin: 'nebula.netflixoss'
 apply plugin: 'idea'
 apply plugin: 'java-library'
@@ -62,16 +44,29 @@ bintray {
     }
 }
 
+ext {
+    archaiusVersion = '2.3.+'
+    assetjCoreVersion = '3.11.1'
+    guavaVersion = '18.+'
+    gsonVersion = '2.8.+'
+    guiceVersion = '4.1.0'
+    jettyVersion = '9.4.12.v20180830'
+    jsonVersion = '20160810'
+    junitVersion = '4.10'
+    lombokVersion = '1.18.10'
+    mantisClientVersion = '1.2.17'
+    mantisDiscoveryProtoVersion = '1.2.+'
+    mockitoVersion = '1.9.5'
+    s3Version = '1.11.566'
+    servletApiVersion = '3.1.0'
+    spectatorVersion = '0.92.+'
+    vavrVersion = '0.10.2'
+}
+
 group = 'io.mantisrx'
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
-
-if (project.hasProperty('useMavenLocal')) {
-    repositories {
-        mavenLocal()
-    }
-}
 
 repositories {
     jcenter()
@@ -81,43 +76,22 @@ tasks.withType(Javadoc).all {
     enabled = false
 }
 
-configurations {
-    implementation.exclude module: 'rxjava-core'
-    implementation.exclude group: 'javax.servlet', module: 'servlet-api'
-    implementation.exclude group: 'org.mortbay.jetty', module: 'servlet-api'
-}
-
-mainClassName = 'io.mantisrx.api.Main'
 
 dependencies {
-    implementation "io.mantisrx:mantis-discovery-proto:$mantisDiscoveryProtoVersion"
-    implementation "io.mantisrx:mantis-client:$mantisClientVersion"
+    compile('com.netflix.zuul:zuul-core:latest.release') {
+        exclude group: 'com.google.guava', module: 'guava'
+    }
+    compile 'com.netflix.blitz4j:blitz4j:1.37.2'
+    compile "io.mantisrx:mantis-discovery-proto:$mantisDiscoveryProtoVersion"
+    compile "io.mantisrx:mantis-client:$mantisClientVersion"
+    compile "io.mantisrx:mantis-runtime:$mantisClientVersion"
+    compile "io.mantisrx:mantis-control-plane-client:$mantisClientVersion"
+    compile "io.vavr:vavr:$vavrVersion"
+    compileOnly "org.projectlombok:lombok:$lombokVersion"
+    annotationProcessor "org.projectlombok:lombok:$lombokVersion"
 
-    implementation "com.netflix.archaius:archaius2-api:$archaiusVersion"
-    implementation "com.netflix.archaius:archaius2-guice:$archaiusVersion"
-    implementation "com.netflix.spectator:spectator-api:$spectatorVersion"
-
-    implementation "javax.servlet:javax.servlet-api:$servletApiVersion"
-
-    implementation "com.google.code.gson:gson:$gsonVersion"
-    implementation "com.google.guava:guava:$guavaVersion"
-    implementation "com.google.inject:guice:$guiceVersion"
-
-    implementation "org.json:json:$jsonVersion"
-    implementation "io.vavr:vavr:$vavrVersion"
-
-    implementation "org.eclipse.jetty:jetty-server:$jettyVersion"
-    implementation "org.eclipse.jetty:jetty-servlet:$jettyVersion"
-    implementation "org.eclipse.jetty:jetty-servlets:$jettyVersion"
-    implementation "org.eclipse.jetty.websocket:websocket-server:$jettyVersion"
-
-    implementation "com.amazonaws:aws-java-sdk-s3:$s3Version"
-
-    testImplementation "junit:junit:$junitVersion"
-    testImplementation "org.assertj:assertj-core:$assetjCoreVersion"
-    testImplementation "org.mockito:mockito-all:$mockitoVersion"
-    testImplementation 'org.apache.httpcomponents:httpclient:4.5.3'
-    testImplementation 'org.apache.httpcomponents:httpcore:4.4.5'
+    testCompileOnly "org.projectlombok:lombok:$lombokVersion"
+    testAnnotationProcessor "org.projectlombok:lombok:$lombokVersion"
 }
 
 configurations.all {
@@ -127,4 +101,22 @@ configurations.all {
     }
 }
 
-apply from: file('gradle/check.gradle')
+/*
+ * Run regular:   ./gradlew run
+ * Run benchmark: ./gradlew run -Pbench
+ */
+run {
+    mainClassName = "io.mantisrx.api.Bootstrap"
+
+    applicationDefaultJvmArgs = ["-DTZ=GMT",
+                                 "-Darchaius.deployment.environment=test",
+                                 "-Dcom.sun.management.jmxremote",
+                                 "-Dcom.sun.management.jmxremote.local.only=false",
+                                 "-Deureka.validateInstanceId=false",
+                                 "-Deureka.mt.num_retries=1"]
+
+    if (project.hasProperty('bench')) {
+        println 'Running benchmark configuration...'
+        jvmArgs "-Darchaius.deployment.environment=benchmark"
+    }
+}
