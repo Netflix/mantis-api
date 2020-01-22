@@ -43,7 +43,7 @@ public class Bootstrap {
 
         try {
             ConfigurationManager.loadCascadedPropertiesFromResources("application");
-            Injector injector = InjectorBuilder.fromModule(new MantisApiModule()).createInjector();
+            Injector injector = InjectorBuilder.fromModule(new MantisAPIModule()).createInjector();
             BaseServerStartup serverStartup = injector.getInstance(BaseServerStartup.class);
             server = serverStartup.server();
 
