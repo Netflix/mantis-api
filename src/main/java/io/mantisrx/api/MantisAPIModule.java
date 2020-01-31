@@ -48,6 +48,8 @@ import java.util.Properties;
 public class MantisAPIModule extends AbstractModule {
     @Override
     protected void configure() {
+        bind(AbstractConfiguration.class).toInstance(ConfigurationManager.getConfigInstance());
+
         // sample specific bindings
         bind(BaseServerStartup.class).to(MantisServerStartup.class);
 
@@ -70,7 +72,6 @@ public class MantisAPIModule extends AbstractModule {
         bind(AccessLogPublisher.class).toInstance(new AccessLogPublisher("ACCESS",
                 (channel, httpRequest) -> ClientRequestReceiver.getRequestFromChannel(channel).getContext().getUUID()));
 
-        bind(AbstractConfiguration.class).toInstance(ConfigurationManager.getConfigInstance());
 
         bind(ArtifactManager.class).to(InMemoryArtifactManager.class);
     }
