@@ -1,4 +1,4 @@
-package io.mantisrx.api.filters.endpoint;
+package io.mantisrx.api.filters;
 
 import com.google.common.base.Strings;
 import com.netflix.zuul.filters.http.HttpSyncEndpoint;

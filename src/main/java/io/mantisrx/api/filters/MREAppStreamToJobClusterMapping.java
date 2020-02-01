@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.mantisrx.api.filters.endpoint;
+package io.mantisrx.api.filters;
 
 import com.google.inject.Inject;
 import com.netflix.mantis.discovery.proto.AppJobClustersMap;

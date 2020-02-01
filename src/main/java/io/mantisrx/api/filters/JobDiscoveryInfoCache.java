@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.mantisrx.api.filters.inbound;
+package io.mantisrx.api.filters;
 
 import com.netflix.zuul.filters.http.HttpInboundSyncFilter;
 import com.netflix.zuul.message.http.HttpHeaderNames;

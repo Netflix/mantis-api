@@ -46,12 +46,6 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.*;
 
-/**
- * Sample Server Startup - class that configures the Netty server startup settings
- *
- * Author: Arthur Gonigberg
- * Date: November 20, 2017
- */
 @Singleton
 public class MantisServerStartup extends BaseServerStartup {
 
