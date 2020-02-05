@@ -97,18 +97,12 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
         ctx.writeAndFlush(response);
     }
 
-    /**
-     * TODO: This could be made a lot more robust with null checks and checking the "upgrade" header for "websocket" value.
-     *       This check failing has caused websocket to break because it receives a 200 response code entering the SSE path.
-     * @param request A HttpRequest representing the request
-     * @return A boolean indicating wether or not this request is a websocket upgrade.
-     */
     private boolean isWebsocketUpgrade(HttpRequest request) {
-        return (request.headers().get("Connection") != null &&
-                request.headers().get("Connection").toLowerCase().equals("upgrade"))
-                || (request.headers().get(HttpHeaderNames.CONNECTION) != null &&
-                request.headers().get(HttpHeaderNames.CONNECTION).toLowerCase().equals("upgrade"));
+        HttpHeaders headers = request.headers();
+        return "Upgrade".equalsIgnoreCase(headers.get(HttpHeaderNames.CONNECTION)) &&
+                "WebSocket".equalsIgnoreCase(headers.get(HttpHeaderNames.UPGRADE));
     }
+
 
     private boolean isSubmitAndConnect(HttpRequest request) {
         return request.method().equals(HttpMethod.POST) && request.uri().contains("jobsubmitandconnect");
