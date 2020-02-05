@@ -104,8 +104,10 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
      * @return A boolean indicating wether or not this request is a websocket upgrade.
      */
     private boolean isWebsocketUpgrade(HttpRequest request) {
-        return request.headers().get("Connection").toLowerCase().equals("upgrade")
-                || request.headers().get(HttpHeaderNames.CONNECTION).toLowerCase().equals("upgrade");
+        return (request.headers().get("Connection") != null &&
+                request.headers().get("Connection").toLowerCase().equals("upgrade"))
+                || (request.headers().get(HttpHeaderNames.CONNECTION) != null &&
+                request.headers().get(HttpHeaderNames.CONNECTION).toLowerCase().equals("upgrade"));
     }
 
     private boolean isSubmitAndConnect(HttpRequest request) {
