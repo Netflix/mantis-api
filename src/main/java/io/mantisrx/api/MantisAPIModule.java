@@ -27,6 +27,7 @@ import javax.net.ssl.SSLContext;
 import com.google.common.collect.Lists;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
+import com.google.inject.Singleton;
 import com.google.inject.TypeLiteral;
 import com.google.inject.name.Named;
 import com.google.inject.name.Names;
@@ -43,6 +44,7 @@ import io.mantisrx.api.handlers.domain.Artifact;
 import io.mantisrx.api.tunnel.DummyStreamingClientFactory;
 import io.mantisrx.api.tunnel.StreamingClientFactory;
 import io.mantisrx.client.MantisClient;
+import io.mantisrx.server.master.client.MantisMasterClientApi;
 import io.mantisrx.server.master.client.MasterClientWrapper;
 import io.vavr.Tuple2;
 import io.vavr.control.Try;
@@ -111,19 +113,24 @@ public class MantisAPIModule extends AbstractModule {
     }
 
 
-    @Provides
+    @Provides @Singleton
     MasterClientWrapper getMasterClientWrapper(Properties properties) {
         return new MasterClientWrapper(properties);
     }
 
-    @Provides
+    @Provides @Singleton
     MantisClient getMantisClient(Properties properties) {
         return new MantisClient(properties);
+    }
+
+    @Provides @Singleton MantisMasterClientApi getMantisMasterClientApi(MasterClientWrapper masterClientWrapper) {
+        return new MantisMasterClientApi(masterClientWrapper.getMasterMonitor());
     }
 
     @Provides
     MantisAPIServer getServer(MasterClientWrapper masterClientWrapper,
                               MantisClient mantisClient,
+                              MantisMasterClientApi mantisMasterClientApi,
                               StreamingClientFactory streamingClientFactory,
                               RemoteSinkConnector remoteSinkConnector,
                               PropertyRepository propertyRepository,
@@ -132,9 +139,13 @@ public class MantisAPIModule extends AbstractModule {
                               WorkerThreadPool workerThreadPool,
                               @Named("servlets") List<Tuple2<String, ServletHolder>> additionalServlets) throws NoSuchAlgorithmException {
 
-        Property<Integer> port = propertyRepository.get("mantistunnel.server.port", Integer.class).orElse(7101);
-        Property<Integer> sslPort = propertyRepository.get("mantistunnel.server.sslPort", Integer.class).orElse(7004);
-        return new MantisAPIServer(port.get(), sslPort.get(), mantisClient, masterClientWrapper, SSLContext.getDefault(), remoteSinkConnector, streamingClientFactory, propertyRepository, registry, workerThreadPool, artifactManager, additionalServlets);
+        Property<Integer> port = propertyRepository.get("mantistunnel.server.port", Integer.class)
+                .orElse(7101);
+        Property<Integer> sslPort = propertyRepository.get("mantistunnel.server.sslPort", Integer.class)
+                .orElse(7004);
+        return new MantisAPIServer(port.get(), sslPort.get(), mantisClient, masterClientWrapper, mantisMasterClientApi,
+                SSLContext.getDefault(), remoteSinkConnector, streamingClientFactory, propertyRepository, registry,
+                workerThreadPool, artifactManager, additionalServlets);
     }
 
     @Provides

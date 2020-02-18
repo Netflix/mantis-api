@@ -42,6 +42,7 @@ import io.mantisrx.api.handlers.utils.Regions;
 import io.mantisrx.api.handlers.ws.ErrorMsgWebSocket;
 import io.mantisrx.api.tunnel.StreamingClientFactory;
 import io.mantisrx.client.MantisClient;
+import io.mantisrx.server.master.client.MantisMasterClientApi;
 import io.mantisrx.server.master.client.MasterClientWrapper;
 import org.eclipse.jetty.servlets.EventSource;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeRequest;
@@ -65,6 +66,7 @@ public class RegionsHandlerWebSocketServlet extends SSEWebSocketServletBase {
     private final JobSubmitAndConnectServlet submitAndConnectServlet;
     private transient final MantisClient mantisClient;
     private transient final MasterClientWrapper masterClientWrapper;
+    private transient final MantisMasterClientApi mantisMasterClientApi;
     private transient final RemoteSinkConnector remoteSinkConnector;
     private transient final StreamingClientFactory streamingClientFactory;
     private transient final PropertyRepository propertyRepository;
@@ -73,17 +75,22 @@ public class RegionsHandlerWebSocketServlet extends SSEWebSocketServletBase {
 
     private final List<String> regions;
 
-    public RegionsHandlerWebSocketServlet(MantisClient mantisClient, MasterClientWrapper masterClientWrapper, StreamingClientFactory streamingClientFactory, PropertyRepository propertyRepository, Registry registry, WorkerThreadPool workerThreadPool) {
+    public RegionsHandlerWebSocketServlet(MantisClient mantisClient, MasterClientWrapper masterClientWrapper,
+                                          MantisMasterClientApi mantisMasterClientApi,
+                                          StreamingClientFactory streamingClientFactory,
+                                          PropertyRepository propertyRepository,
+                                          Registry registry, WorkerThreadPool workerThreadPool) {
         super(propertyRepository);
         this.mantisClient = mantisClient;
         this.masterClientWrapper = masterClientWrapper;
+        this.mantisMasterClientApi = mantisMasterClientApi;
         this.streamingClientFactory = streamingClientFactory;
         this.propertyRepository = propertyRepository;
         this.registry = registry;
         this.workerThreadPool = workerThreadPool;
         this.remoteSinkConnector = new RemoteSinkConnector(streamingClientFactory, registry);
 
-        this.connectByIdServlet = new JobConnectByIdWebSocketServlet(mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool);
+        this.connectByIdServlet = new JobConnectByIdWebSocketServlet(mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool, mantisMasterClientApi);
         this.connectByNameServlet = new JobConnectByNameWebSocketServlet(mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool);
         this.submitAndConnectServlet = new JobSubmitAndConnectServlet(mantisClient, masterClientWrapper, remoteSinkConnector, registry, propertyRepository, workerThreadPool);
 

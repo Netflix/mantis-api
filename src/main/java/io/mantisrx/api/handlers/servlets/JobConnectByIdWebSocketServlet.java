@@ -39,6 +39,8 @@ import io.mantisrx.api.handlers.utils.PathUtils;
 import io.mantisrx.api.handlers.ws.JobConnectWebSocket;
 import io.mantisrx.client.MantisClient;
 import io.mantisrx.runtime.MantisJobState;
+import io.mantisrx.server.master.client.MantisMasterClientApi;
+import io.mantisrx.server.master.client.MasterClientWrapper;
 import org.eclipse.jetty.servlets.EventSource;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeRequest;
@@ -56,6 +58,7 @@ public class JobConnectByIdWebSocketServlet extends SSEWebSocketServletBase {
     @SuppressWarnings("unused")
     private static Logger logger = LoggerFactory.getLogger(JobConnectByIdWebSocketServlet.class);
     private transient final MantisClient mantisClient;
+    private transient final MantisMasterClientApi mantisMasterClientApi;
     private transient final RemoteSinkConnector remoteSinkConnector;
     public static final String handlerName = "jobconnectbyid";
     public static final String helpMsg = handlerName + "/<JobId>";
@@ -66,9 +69,12 @@ public class JobConnectByIdWebSocketServlet extends SSEWebSocketServletBase {
     private transient final ObjectMapper objectMapper = new ObjectMapper();
     private transient final Counter jobIdExistsCounter;
 
-    public JobConnectByIdWebSocketServlet(MantisClient mantisClient, RemoteSinkConnector remoteSinkConnector, PropertyRepository propertyRepository, Registry registry, WorkerThreadPool workerThreadPool) {
+    public JobConnectByIdWebSocketServlet(MantisClient mantisClient, RemoteSinkConnector remoteSinkConnector,
+                                          PropertyRepository propertyRepository, Registry registry,
+                                          WorkerThreadPool workerThreadPool, MantisMasterClientApi mantisMasterClientApi) {
         super(propertyRepository);
         this.mantisClient = mantisClient;
+        this.mantisMasterClientApi = mantisMasterClientApi;
         this.remoteSinkConnector = remoteSinkConnector;
         this.propertyRepository = propertyRepository;
         this.workerThreadPool = workerThreadPool;
@@ -158,22 +164,9 @@ public class JobConnectByIdWebSocketServlet extends SSEWebSocketServletBase {
 
     private boolean jobIdExists(String target, String clusterName) {
         logger.info("Checking if target job {} exists.", target);
-        return mantisClient.getJobsOfNamedJob(clusterName, MantisJobState.MetaState.Active)
-                    .doOnNext(payload -> logger.info("Master Response: {}", payload))
-                    .flatMap(payload -> {
-                        try {
-                            List<Map<String, Object>> decoded =
-                                    objectMapper.readValue(payload, new TypeReference<List<Map<String, Object>>>() {});
-                            return Observable.from(decoded);
-                        } catch (Exception ex) {
-                            logger.error(ex.getMessage());
-                        }
-                        return Observable.empty();
-                    })
-                    .map(obj -> ((Map<String, Object>)obj.get("jobMetadata")).get("jobId").toString())
-                    .filter(jobId -> target.equals(jobId))
-                    .count()
-                    .toBlocking()
-                    .first() > 0;
+        return mantisMasterClientApi.jobIdExists(target)
+                .take(1)
+                .toBlocking()
+                .first();
     }
 }

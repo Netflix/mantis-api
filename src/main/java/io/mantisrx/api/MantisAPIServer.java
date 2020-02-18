@@ -24,6 +24,7 @@ import com.netflix.spectator.api.Registry;
 import io.mantisrx.api.handlers.servlets.AppStreamDiscoveryServlet;
 import io.mantisrx.client.MantisClient;
 
+import io.mantisrx.server.master.client.MantisMasterClientApi;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.ForwardedRequestCustomizer;
@@ -86,7 +87,7 @@ public class MantisAPIServer {
     private final int sslPort;
     private final MantisClient mantisClient;
 
-    public MantisAPIServer(int port, int sslPort, MantisClient mantisClient, MasterClientWrapper masterClientWrapper, SSLContext sslContext, RemoteSinkConnector remoteSinkConnector, StreamingClientFactory streamingClientFactory, PropertyRepository propertyRepository, Registry registry, WorkerThreadPool workerThreadPool, ArtifactManager artifatManager, List<Tuple2<String, ServletHolder>> servlets) {
+    public MantisAPIServer(int port, int sslPort, MantisClient mantisClient, MasterClientWrapper masterClientWrapper, MantisMasterClientApi mantisMasterClientApi, SSLContext sslContext, RemoteSinkConnector remoteSinkConnector, StreamingClientFactory streamingClientFactory, PropertyRepository propertyRepository, Registry registry, WorkerThreadPool workerThreadPool, ArtifactManager artifatManager, List<Tuple2<String, ServletHolder>> servlets) {
         this.serverPort = port;
         this.sslPort = sslPort;
         this.mantisClient = mantisClient;
@@ -146,8 +147,8 @@ public class MantisAPIServer {
 
         List<String> helpMsgs = new ArrayList<>();
 
-        servletContextHandler.addServlet(new ServletHolder(new JobConnectByIdWebSocketServlet(this.mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool)), "/" + JobConnectByIdWebSocketServlet.handlerName + "/*");
-        servletContextHandler.addServlet(new ServletHolder(new JobConnectByIdWebSocketServlet(this.mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool)), "/api/v1/" + JobConnectByIdWebSocketServlet.handlerName + "/*");
+        servletContextHandler.addServlet(new ServletHolder(new JobConnectByIdWebSocketServlet(this.mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool, mantisMasterClientApi)), "/" + JobConnectByIdWebSocketServlet.handlerName + "/*");
+        servletContextHandler.addServlet(new ServletHolder(new JobConnectByIdWebSocketServlet(this.mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool, mantisMasterClientApi)), "/api/v1/" + JobConnectByIdWebSocketServlet.handlerName + "/*");
         helpMsgs.add(JobConnectByIdWebSocketServlet.helpMsg);
 
         servletContextHandler.addServlet(new ServletHolder(new JobStatusWebSocketServlet(this.mantisClient, remoteSinkConnector, propertyRepository, registry, workerThreadPool)), "/" + JobStatusWebSocketServlet.endpointName + "/*");
@@ -169,7 +170,7 @@ public class MantisAPIServer {
         servletContextHandler.addServlet(new ServletHolder(new JobSubmitAndConnectServlet(this.mantisClient, masterClientWrapper, remoteSinkConnector, registry, propertyRepository, workerThreadPool)), "/" + JobSubmitAndConnectServlet.endpointName + "/*");
         servletContextHandler.addServlet(new ServletHolder(new JobSubmitAndConnectServlet(this.mantisClient, masterClientWrapper, remoteSinkConnector, registry, propertyRepository, workerThreadPool)), "/api/v1/" + JobSubmitAndConnectServlet.endpointName + "/*");
         helpMsgs.add(JobSubmitAndConnectServlet.helpMsg);
-        servletContextHandler.addServlet(new ServletHolder(new RegionsHandlerWebSocketServlet(this.mantisClient, masterClientWrapper, streamingClientFactory, propertyRepository, registry, workerThreadPool)), "/" + RegionsHandlerWebSocketServlet.endpointName + "/*");
+        servletContextHandler.addServlet(new ServletHolder(new RegionsHandlerWebSocketServlet(this.mantisClient, masterClientWrapper, mantisMasterClientApi, streamingClientFactory, propertyRepository, registry, workerThreadPool)), "/" + RegionsHandlerWebSocketServlet.endpointName + "/*");
         helpMsgs.add(RegionsHandlerWebSocketServlet.helpMsg);
 
         ServletHolder fileUploadServletHolder = new ServletHolder(new ArtifactUploadServlet(artifatManager));
