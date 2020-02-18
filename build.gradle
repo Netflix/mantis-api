@@ -36,7 +36,7 @@ ext {
     jettyVersion = '9.4.12.v20180830'
     jsonVersion = '20160810'
     junitVersion = '4.10'
-    mantisClientVersion = '1.2.17'
+    mantisClientVersion = '1.2.+'
     mantisDiscoveryProtoVersion = '1.2.+'
     mockitoVersion = '1.9.5'
     s3Version = '1.11.566'
