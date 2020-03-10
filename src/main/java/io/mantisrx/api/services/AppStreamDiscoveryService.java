@@ -50,9 +50,9 @@ public class AppStreamDiscoveryService {
     @Inject
     public AppStreamDiscoveryService(MantisClient mantisClient) {
         this.mantisClient = mantisClient;
-        this.appJobClusterMappingNullCount = SpectatorUtils.newCounter("appJobClusterMappingNull", "");
-        this.appJobClusterMappingRequestCount = SpectatorUtils.newCounter("appJobClusterMappingRequest", "", "app", "unknown");
-        this.appJobClusterMappingFailCount = SpectatorUtils.newCounter("appJobClusterMappingFail", "");
+        this.appJobClusterMappingNullCount = SpectatorUtils.newCounter("appJobClusterMappingNull", "mantisapi");
+        this.appJobClusterMappingRequestCount = SpectatorUtils.newCounter("appJobClusterMappingRequest", "mantisapi", "app", "unknown");
+        this.appJobClusterMappingFailCount = SpectatorUtils.newCounter("appJobClusterMappingFail", "mantisapi");
 
         updateAppJobClustersMapping(appJobClustersProp.get());
         appJobClustersProp.addCallback(() -> updateAppJobClustersMapping(appJobClustersProp.get()));
