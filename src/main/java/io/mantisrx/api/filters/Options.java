@@ -13,8 +13,8 @@ public class Options extends HttpSyncEndpoint {
 
     @Override
     public HttpResponseMessage apply(HttpRequestMessage request) {
-        HttpResponseMessage resp = new HttpResponseMessageImpl(request.getContext(), request, HttpResponseStatus.NO_CONTENT.code());
-        resp.setHasBody(false);
+        HttpResponseMessage resp = new HttpResponseMessageImpl(request.getContext(), request, HttpResponseStatus.OK.code());
+        resp.setBodyAsText("");
         StatusCategoryUtils.setStatusCategory(request.getContext(), ZuulStatusCategory.SUCCESS);
         return resp;
     }
