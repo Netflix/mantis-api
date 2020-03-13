@@ -1,5 +1,10 @@
 package io.mantisrx.api.push;
 
+import com.netflix.spectator.api.Counter;
+import com.netflix.spectator.api.Registry;
+import com.netflix.spectator.api.Tag;
+import com.netflix.zuul.netty.SpectatorUtils;
+import io.mantisrx.api.util.Constants;
 import io.mantisrx.api.util.RetryUtils;
 import io.mantisrx.api.util.Util;
 import io.mantisrx.server.core.master.MasterDescription;
@@ -23,6 +28,7 @@ import rx.Subscription;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -40,7 +46,9 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
     private static final String SSE_SUFFIX = "\r\n\r\n";
     private static final String SSE_PREFIX = "data: ";
 
-    public MantisSSEHandler(ConnectionBroker connectionBroker, MasterClientWrapper masterClientWrapper, List<String> pushPrefixes) {
+
+    public MantisSSEHandler(ConnectionBroker connectionBroker, MasterClientWrapper masterClientWrapper,
+                            List<String> pushPrefixes) {
         this.connectionBroker = connectionBroker;
         this.masterClientWrapper = masterClientWrapper;
         this.pushPrefixes = pushPrefixes;
@@ -73,23 +81,36 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
                             ? new PushConnectionDetails(jobSubmit(request), PushConnectionDetails.TARGET_TYPE.CONNECT_BY_ID)
                             : new PushConnectionDetails(PushConnectionDetails.determineTarget(uri),
                             PushConnectionDetails.determineTargetType(uri));
-        log.info("SSE Connecting for: {}", pcd);
+            log.info("SSE Connecting for: {}", pcd);
 
-        this.subscription = this.connectionBroker.connect(pcd)
-                .doOnNext(event -> {
-                    if (ctx.channel().isWritable()) {
-                        ctx.writeAndFlush(Unpooled.copiedBuffer(SSE_PREFIX
-                                        + event
-                                        + SSE_SUFFIX,
-                                StandardCharsets.UTF_8));
-                    }
-                })
-                .subscribe();
+            final String[] tags = Util.getTaglist(uri, "NONE"); // TODO: Attach an ID to streaming calls via Zuul. This will help access log too.
+            Counter numDroppedBytesCounter = SpectatorUtils.newCounter(Constants.numDroppedBytesCounterName, "NONE", tags);
+            Counter numDroppedMessagesCounter = SpectatorUtils.newCounter(Constants.numDroppedMessagesCounterName, "NONE", tags);
+            Counter numMessagesCounter = SpectatorUtils.newCounter(Constants.numMessagesCounterName, "NONE", tags);
+            Counter numBytesCounter = SpectatorUtils.newCounter(Constants.numBytesCounterName, "NONE", tags);
 
-    } else {
-        ctx.fireChannelRead(request.retain());
+            this.subscription = this.connectionBroker.connect(pcd)
+                    .doOnNext(event -> {
+                        String data = SSE_PREFIX + event + SSE_SUFFIX;
+                        if (ctx.channel().isWritable()) {
+                            ctx.writeAndFlush(Unpooled.copiedBuffer(SSE_PREFIX
+                                            + event
+                                            + SSE_SUFFIX,
+                                    StandardCharsets.UTF_8));
+
+                            numMessagesCounter.increment();
+                            numBytesCounter.increment(data.length());
+                        } else {
+                            numDroppedBytesCounter.increment(data.length());
+                            numDroppedMessagesCounter.increment();
+                        }
+                    })
+                    .subscribe();
+
+        } else {
+            ctx.fireChannelRead(request.retain());
+        }
     }
-}
 
     private static void send100Contine(ChannelHandlerContext ctx) {
         FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
@@ -140,28 +161,28 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
                 .first();
     }
 
-public static class MasterResponse {
+    public static class MasterResponse {
 
-    private final HttpResponseStatus status;
-    private final Observable<ByteBuf> byteBuf;
-    private final HttpResponseHeaders responseHeaders;
+        private final HttpResponseStatus status;
+        private final Observable<ByteBuf> byteBuf;
+        private final HttpResponseHeaders responseHeaders;
 
-    public MasterResponse(HttpResponseStatus status, Observable<ByteBuf> byteBuf, HttpResponseHeaders responseHeaders) {
-        this.status = status;
-        this.byteBuf = byteBuf;
-        this.responseHeaders = responseHeaders;
+        public MasterResponse(HttpResponseStatus status, Observable<ByteBuf> byteBuf, HttpResponseHeaders responseHeaders) {
+            this.status = status;
+            this.byteBuf = byteBuf;
+            this.responseHeaders = responseHeaders;
+        }
+
+        public HttpResponseStatus getStatus() {
+            return status;
+        }
+
+        public Observable<ByteBuf> getByteBuf() {
+            return byteBuf;
+        }
+
+        public HttpResponseHeaders getResponseHeaders() { return responseHeaders; }
     }
-
-    public HttpResponseStatus getStatus() {
-        return status;
-    }
-
-    public Observable<ByteBuf> getByteBuf() {
-        return byteBuf;
-    }
-
-    public HttpResponseHeaders getResponseHeaders() { return responseHeaders; }
-}
 
     public static Observable<MasterResponse> callPostOnMaster(Observable<MasterDescription> masterObservable, String uri, String content) {
         PipelineConfigurator<HttpClientResponse<ByteBuf>, HttpClientRequest<String>> pipelineConfigurator

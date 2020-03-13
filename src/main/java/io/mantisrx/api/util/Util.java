@@ -15,11 +15,14 @@
  */
 package io.mantisrx.api.util;
 
+import io.netty.handler.codec.http.QueryStringDecoder;
 import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 
-import java.util.List;
+import java.util.*;
 
 @UtilityClass
+@Slf4j
 public class Util {
     public static String getTokenAfter(String path, String suffix) {
         if (path == null)
@@ -44,4 +47,60 @@ public class Util {
         return false;
     }
 
+    //
+    // Regions
+    //
+
+    public static String getLocalRegion() {
+        return System.getenv("EC2_REGION");
+    }
+
+    //
+    // Query Params
+    //
+
+    public static final String TunnelPingParamName = "MantisApiTunnelPingEnabled";
+    public static final String OriginRegionTagName = "originRegion";
+    public static final String TagsParamName = "MantisApiTag";
+    public static final String TagNameValDelimiter = ":";
+
+    public static String[] getTaglist(String uri, String id) {
+        QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri);
+        Map<String, List<String>> queryParameters = queryStringDecoder.parameters();
+
+
+        final List<String> tags = new LinkedList<>();
+        if (queryParameters != null) {
+            final List<String> tagVals = queryParameters.get(TagsParamName);
+            if (tagVals != null) {
+                for (String s : tagVals) {
+                    StringTokenizer tokenizer = new StringTokenizer(s, TagNameValDelimiter);
+                    if (tokenizer.countTokens() == 2) {
+                        String s1 = tokenizer.nextToken();
+                        String s2 = tokenizer.nextToken();
+                        if (s1 != null && !s1.isEmpty() && s2 != null && !s2.isEmpty()) {
+                            tags.add(s1);
+                            tags.add(s2);
+                        }
+                    }
+                }
+            }
+        }
+
+        tags.add("SessionId");
+        tags.add(id);
+
+        tags.add("urlPath");
+        tags.add(queryStringDecoder.path());
+
+        log.info(tags.toString());
+
+        return tags.toArray(new String[]{});
+    }
+
+    public static String getTunnelConnectParams() {
+        return TunnelPingParamName + "=true&" +
+                TagsParamName + "=" + OriginRegionTagName + TagNameValDelimiter +
+                getLocalRegion();
+    }
 }

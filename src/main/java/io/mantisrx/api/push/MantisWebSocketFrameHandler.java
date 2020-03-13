@@ -1,5 +1,9 @@
 package io.mantisrx.api.push;
 
+import com.netflix.spectator.api.Counter;
+import com.netflix.zuul.netty.SpectatorUtils;
+import io.mantisrx.api.util.Constants;
+import io.mantisrx.api.util.Util;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
@@ -30,10 +34,21 @@ public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<Tex
             final PushConnectionDetails pcd = new PushConnectionDetails(PushConnectionDetails.determineTarget(uri),
                     PushConnectionDetails.determineTargetType(uri));
 
+            final String[] tags = Util.getTaglist(uri, "NONE"); // TODO: Attach an ID to streaming calls via Zuul. This will help access log too.
+            Counter numDroppedBytesCounter = SpectatorUtils.newCounter(Constants.numDroppedBytesCounterName, "NONE", tags);
+            Counter numDroppedMessagesCounter = SpectatorUtils.newCounter(Constants.numDroppedMessagesCounterName, "NONE", tags);
+            Counter numMessagesCounter = SpectatorUtils.newCounter(Constants.numMessagesCounterName, "NONE", tags);
+            Counter numBytesCounter = SpectatorUtils.newCounter(Constants.numBytesCounterName, "NONE", tags);
+
             this.subscription = this.connectionBroker.connect(pcd)
                     .doOnNext(event -> {
                         if (ctx.channel().isWritable()) {
                             ctx.writeAndFlush(new TextWebSocketFrame(event));
+                            numMessagesCounter.increment();
+                            numBytesCounter.increment(event.length());
+                        } else {
+                            numDroppedBytesCounter.increment(event.length());
+                            numDroppedMessagesCounter.increment();
                         }
                     })
             .subscribe();
@@ -54,6 +69,4 @@ public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<Tex
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) throws Exception {
         // No op.
     }
-
-
 }
