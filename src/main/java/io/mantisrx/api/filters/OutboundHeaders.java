@@ -20,6 +20,7 @@ public class OutboundHeaders extends HttpOutboundSyncFilter {
                 "Origin, X-Requested-With, Accept, Content-Type, Cache-Control");
         addHeaderIfMissing(resp, HttpHeaderNames.ACCESS_CONTROL_ALLOW_METHODS,
                 "GET, OPTIONS, PUT, POST, DELETE, CONNECT");
+        addHeaderIfMissing(resp, HttpHeaderNames.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
         return resp;
     }
 

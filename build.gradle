@@ -86,6 +86,7 @@ dependencies {
     compile "io.mantisrx:mantis-client:$mantisClientVersion"
     compile "io.mantisrx:mantis-runtime:$mantisClientVersion"
     compile "io.mantisrx:mantis-control-plane-client:$mantisClientVersion"
+    compile "io.mantisrx:mql-jvm:3.+"
     compile "io.vavr:vavr:$vavrVersion"
     compile "com.google.inject:guice:$guiceVersion"
     compileOnly "org.projectlombok:lombok:$lombokVersion"

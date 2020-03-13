@@ -16,31 +16,44 @@
 package io.mantisrx.api.initializers;
 
 import com.netflix.netty.common.HttpLifecycleChannelHandler;
+import com.netflix.netty.common.channel.config.ChannelConfig;
+import com.netflix.netty.common.channel.config.CommonChannelConfigKeys;
 import com.netflix.zuul.netty.server.BaseZuulChannelInitializer;
-
+import com.netflix.zuul.netty.ssl.SslContextFactory;
 import io.mantisrx.api.push.ConnectionBroker;
 import io.mantisrx.api.push.MantisSSEHandler;
 import io.mantisrx.api.push.MantisWebSocketFrameHandler;
+import io.mantisrx.api.tunnel.CrossRegionHandler;
+import io.mantisrx.api.tunnel.MantisCrossRegionalClient;
 import io.mantisrx.api.util.Util;
 import io.mantisrx.client.MantisClient;
 import io.mantisrx.server.master.client.MasterClientWrapper;
-import io.netty.channel.*;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.group.ChannelGroup;
-import com.netflix.netty.common.channel.config.ChannelConfig;
-import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
-import io.netty.util.ReferenceCountUtil;
-import lombok.extern.slf4j.Slf4j;
 
+import javax.net.ssl.SSLException;
 import java.util.List;
 
-@Slf4j
-public class MantisApiServerChannelInitializer extends BaseZuulChannelInitializer {
+
+public class MantisApiServerChannelInitializer extends BaseZuulChannelInitializer
+{
+    private final SslContextFactory sslContextFactory;
+    private final SslContext sslContext;
+    private final boolean isSSlFromIntermediary;
 
     private final ConnectionBroker connectionBroker;
     private final MasterClientWrapper masterClientWrapper;
+    private final MantisCrossRegionalClient mantisCrossRegionalClient;
     private final List<String> pushPrefixes;
+    private final boolean sslEnabled;
 
     public MantisApiServerChannelInitializer(
             String metricId,
@@ -49,26 +62,64 @@ public class MantisApiServerChannelInitializer extends BaseZuulChannelInitialize
             ChannelGroup channels,
             List<String> pushPrefixes,
             MantisClient mantisClient,
-            MasterClientWrapper masterClientWrapper) {
-
+            MasterClientWrapper masterClientWrapper,
+            MantisCrossRegionalClient mantisCrossRegionalClient,
+            boolean sslEnabled) {
         super(metricId, channelConfig, channelDependencies, channels);
+
         this.pushPrefixes = pushPrefixes;
         this.connectionBroker = new ConnectionBroker(mantisClient);
         this.masterClientWrapper = masterClientWrapper;
+        this.mantisCrossRegionalClient = mantisCrossRegionalClient;
+        this.sslEnabled = sslEnabled;
+
+        this.isSSlFromIntermediary = channelConfig.get(CommonChannelConfigKeys.isSSlFromIntermediary);
+        this.sslContextFactory = channelConfig.get(CommonChannelConfigKeys.sslContextFactory);
+
+        if (sslEnabled) {
+            try {
+                sslContext = sslContextFactory.createBuilderForServer().build();
+            } catch (SSLException e) {
+                throw new RuntimeException("Error configuring SslContext!", e);
+            }
+
+            // Enable TLS Session Tickets support.
+            sslContextFactory.enableSessionTickets(sslContext);
+
+            // Setup metrics tracking the OpenSSL stats.
+            sslContextFactory.configureOpenSslStatsMetrics(sslContext, metricId);
+        } else {
+            sslContext = null;
+        }
     }
+
 
     @Override
     protected void initChannel(Channel ch) throws Exception
     {
+
+        // Configure our pipeline of ChannelHandlerS.
         ChannelPipeline pipeline = ch.pipeline();
 
         storeChannel(ch);
         addTimeoutHandlers(pipeline);
         addPassportHandler(pipeline);
         addTcpRelatedHandlers(pipeline);
+
+        // TODO: If these three are the only ones I can add them in the previous pipeline.
+        if (sslEnabled) {
+            SslHandler sslHandler = sslContext.newHandler(ch.alloc());
+            sslHandler.engine().setEnabledProtocols(sslContextFactory.getProtocols());
+            pipeline.addLast("ssl", sslHandler);
+            addSslInfoHandlers(pipeline, isSSlFromIntermediary);
+            addSslClientCertChecks(pipeline);
+        }
+
         addHttp1Handlers(pipeline);
         addHttpRelatedHandlers(pipeline);
 
+        // TODO: A lot of duplication from MantisApiServerChannelInitializer here. This allows us to iterate quickly,
+        //       but we will bring it into the fold eventually.
         pipeline.addLast("mantishandler", new MantisChannelHandler(pushPrefixes));
     }
 
@@ -87,6 +138,18 @@ public class MantisApiServerChannelInitializer extends BaseZuulChannelInitialize
         pipeline.addLast(new MantisSSEHandler(connectionBroker, masterClientWrapper, pushPrefixes));
         pipeline.addLast(new WebSocketServerProtocolHandler(url, true));
         pipeline.addLast(new MantisWebSocketFrameHandler(connectionBroker));
+    }
+
+    /**
+     * Adds a series of handlers for providing SSE/Websocket connections
+     * to Mantis Jobs.
+     *
+     * @param pipeline The netty pipeline to which regional handlers should be added.
+     */
+    protected void addRegionalHandlers(final ChannelPipeline pipeline) {
+        pipeline.addLast(new ChunkedWriteHandler());
+        pipeline.addLast(new HttpObjectAggregator(10 * 1024 * 1024));
+        pipeline.addLast(new CrossRegionHandler(pushPrefixes, mantisCrossRegionalClient));
     }
 
     /**
@@ -114,6 +177,8 @@ public class MantisApiServerChannelInitializer extends BaseZuulChannelInitialize
 
                 if (Util.startsWithAnyOf(uri, this.pushPrefixes)) {
                     addPushHandlers(pipeline, uri);
+                } else if(uri.startsWith("/region/")) {
+                    addRegionalHandlers(pipeline);
                 } else {
                     addZuulHandlers(pipeline);
                 }

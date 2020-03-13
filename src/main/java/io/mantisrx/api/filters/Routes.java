@@ -56,6 +56,8 @@ public class Routes extends HttpInboundSyncFilter {
             request.setPath(newUrl);
             context.setEndpoint(ZuulEndPointRunner.PROXY_ENDPOINT_FILTER_NAME);
             context.setRouteVIP("api");
+        } else if (path.equalsIgnoreCase("/api/v1/mql/parse")) {
+            context.setEndpoint(MQLParser.class.getCanonicalName());
         } else if (path.equals(MREAppStreamToJobClusterMapping.PATH_SPEC)) {
             context.setEndpoint(MREAppStreamToJobClusterMapping.class.getCanonicalName());
         } else {

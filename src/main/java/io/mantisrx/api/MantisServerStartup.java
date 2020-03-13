@@ -33,6 +33,7 @@ import com.netflix.zuul.context.SessionContextDecorator;
 import com.netflix.zuul.netty.server.BaseServerStartup;
 import com.netflix.zuul.netty.server.DirectMemoryMonitor;
 import io.mantisrx.api.initializers.MantisApiServerChannelInitializer;
+import io.mantisrx.api.tunnel.MantisCrossRegionalClient;
 import io.mantisrx.client.MantisClient;
 import io.mantisrx.server.master.client.MasterClientWrapper;
 import io.netty.channel.ChannelInitializer;
@@ -41,7 +42,6 @@ import org.apache.commons.configuration.AbstractConfiguration;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.io.File;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.*;
@@ -49,18 +49,9 @@ import java.util.*;
 @Singleton
 public class MantisServerStartup extends BaseServerStartup {
 
-    enum ServerType {
-        HTTP,
-        HTTP2,
-        HTTP_MUTUAL_TLS,
-        WEBSOCKET,
-        SSE
-    }
-
-    private static final String[] WWW_PROTOCOLS = new String[]{"TLSv1.2", "TLSv1.1", "TLSv1", "SSLv3"};
-    private static final ServerType SERVER_TYPE = ServerType.HTTP;
     private final MantisClient mantisClient;
     private final MasterClientWrapper masterClientWrapper;
+    private final MantisCrossRegionalClient mantisCrossRegionalClient;
 
     @Inject
     public MantisServerStartup(ServerStatusManager serverStatusManager, FilterLoader filterLoader,
@@ -71,13 +62,15 @@ public class MantisServerStartup extends BaseServerStartup {
                                AccessLogPublisher accessLogPublisher,
                                AbstractConfiguration configurationManager,
                                MasterClientWrapper masterClientWrapper,
-                               MantisClient mantisClient
+                               MantisClient mantisClient,
+                               MantisCrossRegionalClient mantisCrossRegionalClient
                                ) {
         super(serverStatusManager, filterLoader, sessionCtxDecorator, usageNotifier, reqCompleteHandler, registry,
                 directMemoryMonitor, eventLoopGroupMetrics, discoveryClient, applicationInfoManager,
                 accessLogPublisher);
         this.mantisClient = mantisClient;
         this.masterClientWrapper = masterClientWrapper;
+        this.mantisCrossRegionalClient = mantisCrossRegionalClient;
 
         // Mantis Master Listener
         masterClientWrapper
@@ -125,13 +118,9 @@ public class MantisServerStartup extends BaseServerStartup {
         addrsToChannels.put(
                 sockAddr,
                 new MantisApiServerChannelInitializer(
-                        String.valueOf(port), channelConfig, channelDependencies, clientChannels, pushPrefixes, mantisClient, masterClientWrapper));
+                        String.valueOf(port), channelConfig, channelDependencies, clientChannels, pushPrefixes, mantisClient, masterClientWrapper, mantisCrossRegionalClient, false));
         logAddrConfigured(sockAddr);
 
         return Collections.unmodifiableMap(addrsToChannels);
-    }
-
-    private File loadFromResources(String s) {
-        return new File(ClassLoader.getSystemResource("ssl/" + s).getFile());
     }
 }

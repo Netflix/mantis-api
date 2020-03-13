@@ -39,6 +39,8 @@ import io.mantisrx.api.services.artifacts.ArtifactManager;
 import io.mantisrx.api.services.artifacts.InMemoryArtifactManager;
 import com.netflix.zuul.stats.BasicRequestMetricsPublisher;
 import com.netflix.zuul.stats.RequestMetricsPublisher;
+import io.mantisrx.api.tunnel.MantisCrossRegionalClient;
+import io.mantisrx.api.tunnel.NoOpCrossRegionalClient;
 import io.mantisrx.client.MantisClient;
 import io.mantisrx.server.master.client.MasterClientWrapper;
 import org.apache.commons.configuration.AbstractConfiguration;
@@ -74,6 +76,7 @@ public class MantisAPIModule extends AbstractModule {
 
 
         bind(ArtifactManager.class).to(InMemoryArtifactManager.class);
+        bind(MantisCrossRegionalClient.class).to(NoOpCrossRegionalClient.class);
     }
 
     @Provides
