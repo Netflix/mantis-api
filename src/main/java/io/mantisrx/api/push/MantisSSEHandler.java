@@ -28,9 +28,8 @@ import rx.Subscription;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Http handler for the WebSocket/SSE paths.
@@ -63,6 +62,8 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
                 send100Contine(ctx);
             }
 
+
+
             HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1,
                     HttpResponseStatus.OK);
             HttpHeaders headers = response.headers();
@@ -83,6 +84,8 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
                             PushConnectionDetails.determineTargetType(uri));
             log.info("SSE Connecting for: {}", pcd);
 
+            boolean tunnelPingsEnabled = isTunnelPingsEnabled(uri);
+
             final String[] tags = Util.getTaglist(uri, "NONE"); // TODO: Attach an ID to streaming calls via Zuul. This will help access log too.
             Counter numDroppedBytesCounter = SpectatorUtils.newCounter(Constants.numDroppedBytesCounterName, "NONE", tags);
             Counter numDroppedMessagesCounter = SpectatorUtils.newCounter(Constants.numDroppedMessagesCounterName, "NONE", tags);
@@ -90,6 +93,11 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
             Counter numBytesCounter = SpectatorUtils.newCounter(Constants.numBytesCounterName, "NONE", tags);
 
             this.subscription = this.connectionBroker.connect(pcd)
+                    .mergeWith(tunnelPingsEnabled
+                            ? Observable.interval(Constants.TunnelPingIntervalSecs, Constants.TunnelPingIntervalSecs,
+                            TimeUnit.SECONDS)
+                            .map(l -> Constants.TunnelPingMessage)
+                            : Observable.empty())
                     .doOnNext(event -> {
                         String data = SSE_PREFIX + event + SSE_SUFFIX;
                         if (ctx.channel().isWritable()) {
@@ -116,6 +124,14 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
         FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
                 HttpResponseStatus.CONTINUE);
         ctx.writeAndFlush(response);
+    }
+
+    private boolean isTunnelPingsEnabled(String uri) {
+        QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri);
+        return queryStringDecoder.parameters()
+                .getOrDefault(Constants.TunnelPingParamName, Arrays.asList("false"))
+                .get(0)
+                .equalsIgnoreCase("true");
     }
 
     private boolean isWebsocketUpgrade(HttpRequest request) {

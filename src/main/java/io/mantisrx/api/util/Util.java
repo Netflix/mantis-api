@@ -16,10 +16,14 @@
 package io.mantisrx.api.util;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.QueryStringEncoder;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
+
+import static io.mantisrx.api.util.Constants.TagNameValDelimiter;
+import static io.mantisrx.api.util.Constants.TagsParamName;
 
 @UtilityClass
 @Slf4j
@@ -59,11 +63,6 @@ public class Util {
     // Query Params
     //
 
-    public static final String TunnelPingParamName = "MantisApiTunnelPingEnabled";
-    public static final String OriginRegionTagName = "originRegion";
-    public static final String TagsParamName = "MantisApiTag";
-    public static final String TagNameValDelimiter = ":";
-
     public static String[] getTaglist(String uri, String id) {
         QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri);
         Map<String, List<String>> queryParameters = queryStringDecoder.parameters();
@@ -96,11 +95,5 @@ public class Util {
         log.info(tags.toString());
 
         return tags.toArray(new String[]{});
-    }
-
-    public static String getTunnelConnectParams() {
-        return TunnelPingParamName + "=true&" +
-                TagsParamName + "=" + OriginRegionTagName + TagNameValDelimiter +
-                getLocalRegion();
     }
 }

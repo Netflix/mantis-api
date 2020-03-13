@@ -19,6 +19,7 @@ package io.mantisrx.api.tunnel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.spectator.api.Counter;
 import com.netflix.zuul.netty.SpectatorUtils;
+import io.mantisrx.api.util.Constants;
 import io.mantisrx.api.util.RetryUtils;
 import io.mantisrx.api.util.Util;
 import io.mantisrx.common.MantisServerSentEvent;
@@ -40,7 +41,6 @@ import rx.Observable;
 import rx.Scheduler;
 import rx.Subscription;
 import rx.functions.Func1;
-import rx.schedulers.Schedulers;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -51,13 +51,15 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.mantisrx.api.util.Constants.*;
+import static io.mantisrx.api.util.Util.getLocalRegion;
+
 @Slf4j
 public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     public static final String metaErrorMsgHeader = "mantis.meta.error.message";
     public static final String metaOriginName = "mantis.meta.origin";
-    private static final String TWO_NEWLINES = "\n\n";
-    private static final String SSE_DATA_PREFIX = "data: ";
+
     private static final String numRemoteBytesCounterName = "numRemoteSinkBytes";
     private static final String numRemoteMessagesCounterName = "numRemoteMessages";
     private static final String numSseErrorsCounterName = "numSseErrors";
@@ -185,13 +187,14 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                 ? Arrays.asList("us-east-1", "us-west-2", "eu-west-1")
                 : Collections.singletonList(getRegion(request.uri()));
 
+        // TODO: Need to add tunnel ping params, origin region.
         log.info("Relaying POST URI {} to {}.", uri, regions);
         final AtomicReference<Throwable> ref = new AtomicReference<>();
 
         String content = request.content().toString(Charset.defaultCharset());
         Observable.from(regions)
                 .flatMap(region -> {
-                    HttpClientRequest<String> rq = HttpClientRequest.create(HttpMethod.POST, uri);
+                    HttpClientRequest<String> rq = HttpClientRequest.create(HttpMethod.POST, uriWithTunnelParamsAdded(uri));
                     rq.withRawContent(content, StringTransformer.DEFAULT_INSTANCE);
 
                     return Observable
@@ -281,8 +284,9 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                 .observeOn(scheduler)
                 .subscribeOn(scheduler)
                 .subscribe(result -> {
-                    ctx.writeAndFlush(Unpooled.copiedBuffer(SSE_DATA_PREFIX + result
-                            + TWO_NEWLINES, StandardCharsets.UTF_8));
+                    ctx.writeAndFlush(Unpooled.copiedBuffer(Constants.SSE_DATA_PREFIX + result
+                            +
+                            Constants.TWO_NEWLINES, StandardCharsets.UTF_8));
                 });
     }
 
@@ -365,6 +369,13 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
         }
     }
 
+    private String uriWithTunnelParamsAdded(String uri) {
+        QueryStringEncoder queryStringEncoder = new QueryStringEncoder(uri);
+        queryStringEncoder.addParam(TunnelPingParamName, "true");
+        queryStringEncoder.addParam(TagsParamName, OriginRegionTagName + TagNameValDelimiter + getLocalRegion());
+        return queryStringEncoder.toString();
+    }
+
     // TODO: Duplicate with MantisSSEHandler
     private static void send100Contine(ChannelHandlerContext ctx) {
         FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
@@ -383,7 +394,6 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private static String getRegion(String uri) {
         return uri.replaceFirst("^/region/", "")
                 .replaceFirst("/.*$", "");
-
     }
 
     private static String responseToString(List<RegionData> dataList) {
