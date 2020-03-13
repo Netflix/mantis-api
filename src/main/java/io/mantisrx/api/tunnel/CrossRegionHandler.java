@@ -37,6 +37,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import rx.Observable;
+import rx.Scheduler;
 import rx.Subscription;
 import rx.functions.Func1;
 import rx.schedulers.Schedulers;
@@ -66,6 +67,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
     private final List<String> pushPrefixes;
     private final MantisCrossRegionalClient nfMantisCrossRegionalClient;
+    private final Scheduler scheduler;
 
     private static final Func1<Observable<? extends Throwable>, Observable<?>> retryLogic =
             RetryUtils.getRetryFunc(log, 5);
@@ -76,9 +78,11 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
     public CrossRegionHandler(
             List<String> pushPrefixes,
-            MantisCrossRegionalClient nfMantisCrossRegionalClient) {
+            MantisCrossRegionalClient nfMantisCrossRegionalClient,
+            Scheduler scheduler) {
         this.pushPrefixes = pushPrefixes;
         this.nfMantisCrossRegionalClient = nfMantisCrossRegionalClient;
+        this.scheduler = scheduler;
     }
 
     @Override
@@ -169,8 +173,8 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                     regionDatas.add(regionData);
                     return regionDatas;
                 })
-                .observeOn(Schedulers.io())
-                .subscribeOn(Schedulers.io())
+                .observeOn(scheduler)
+                .subscribeOn(scheduler)
                 .take(1)
                 .subscribe(result -> writeDataAndCloseChannel(ctx, result));
     }
@@ -220,8 +224,8 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                     regionDatas.add(regionData);
                     return regionDatas;
                 })
-                .observeOn(Schedulers.io())
-                .subscribeOn(Schedulers.io())
+                .observeOn(scheduler)
+                .subscribeOn(scheduler)
                 .take(1)
                 .subscribe(result -> writeDataAndCloseChannel(ctx, result));
     }
@@ -269,13 +273,13 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                                         .map(datum -> datum.getEventAsString().replaceFirst("^\\{", originReplacement))
                                         .doOnError(t -> log.error(t.getMessage()));
                             })
-                            .subscribeOn(Schedulers.io())
-                            .observeOn(Schedulers.io())
+                            .subscribeOn(scheduler)
+                            .observeOn(scheduler)
                             .doOnError(t -> log.warn("Error streaming in remote data, will retry: " + t.getMessage(), t))
                             .doOnCompleted(() -> log.info(String.format("remote sink connection complete for uri %s, region=%s", uri, region)));
                 })
-                .observeOn(Schedulers.io())
-                .subscribeOn(Schedulers.io())
+                .observeOn(scheduler)
+                .subscribeOn(scheduler)
                 .subscribe(result -> {
                     ctx.writeAndFlush(Unpooled.copiedBuffer(SSE_DATA_PREFIX + result
                             + TWO_NEWLINES, StandardCharsets.UTF_8));

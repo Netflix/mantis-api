@@ -1,5 +1,6 @@
 package io.mantisrx.api.push;
 
+import com.google.inject.name.Named;
 import io.mantisrx.api.services.JobDiscoveryService;
 import io.mantisrx.api.util.JacksonObjectMapper;
 import io.mantisrx.client.MantisClient;
@@ -10,6 +11,7 @@ import io.mantisrx.runtime.parameter.SinkParameters;
 import io.vavr.control.Try;
 import lombok.extern.slf4j.Slf4j;
 import rx.Observable;
+import rx.Scheduler;
 import rx.schedulers.Schedulers;
 
 import java.util.Map;
@@ -21,12 +23,14 @@ public class ConnectionBroker {
 
     private final MantisClient mantisClient;
     private final JobDiscoveryService jobDiscoveryService;
+    private final Scheduler scheduler;
 
     private final Map<PushConnectionDetails, Observable<String>> connectionCache = new ConcurrentHashMap<>();
 
-    public ConnectionBroker(MantisClient mantisClient) {
+    public ConnectionBroker(MantisClient mantisClient, @Named("io-scheduler") Scheduler scheduler) {
         this.mantisClient = mantisClient;
-        this.jobDiscoveryService = JobDiscoveryService.getInstance(mantisClient);
+        this.jobDiscoveryService = JobDiscoveryService.getInstance(mantisClient, scheduler);
+        this.scheduler = scheduler;
     }
 
     public Observable<String> connect(PushConnectionDetails details) {
@@ -38,7 +42,7 @@ public class ConnectionBroker {
                             getResults(false, this.mantisClient, details.target, new SinkParameters.Builder().build())
                                     .flatMap(m -> m)
                                     .map(m -> m.getEventAsString())
-                                    .subscribeOn(Schedulers.io())
+                                    .subscribeOn(scheduler)
                                     .doOnUnsubscribe(() -> {
                                         log.info("Purging {} from cache.", details);
                                         connectionCache.remove(details);
@@ -50,7 +54,7 @@ public class ConnectionBroker {
                             getResults(true, this.mantisClient, details.target, new SinkParameters.Builder().build())
                                     .flatMap(m -> m)
                                     .map(m -> m.getEventAsString())
-                                    .subscribeOn(Schedulers.io())
+                                    .subscribeOn(scheduler)
                                     .doOnCompleted(() -> {
                                         log.info("Purging {} from cache.", details);
                                         connectionCache.remove(details);
@@ -61,7 +65,7 @@ public class ConnectionBroker {
                     connectionCache.put(details,
                             mantisClient
                                     .getJobStatusObservable(details.target)
-                                    .subscribeOn(Schedulers.io())
+                                    .subscribeOn(scheduler)
                                     .doOnCompleted(() -> {
                                         log.info("Purging {} from cache.", details);
                                         connectionCache.remove(details);
@@ -71,7 +75,7 @@ public class ConnectionBroker {
                 case JOB_SCHEDULING_INFO:
                     connectionCache.put(details,
                             mantisClient.getSchedulingChanges(details.target)
-                                    .subscribeOn(Schedulers.io())
+                                    .subscribeOn(scheduler)
                                     .map(changes -> Try.of(() -> JacksonObjectMapper.getInstance().writeValueAsString(changes)).getOrElse("Error"))
                                     .doOnCompleted(() -> {
                                         log.info("Purging {} from cache.", details);
@@ -83,7 +87,7 @@ public class ConnectionBroker {
                     connectionCache.put(details,
                             // TODO: We may not want to cache some of these, or maybe replay a few messages given that they follow a cold then hot format.
                             jobDiscoveryService.jobDiscoveryInfoStream(jobDiscoveryService.key(JobDiscoveryService.LookupType.JOB_CLUSTER, details.target))
-                                    .subscribeOn(Schedulers.io())
+                                    .subscribeOn(scheduler)
                                     .map(jdi ->Try.of(() -> JacksonObjectMapper.getInstance().writeValueAsString(jdi)).getOrElse("Error"))
                                     .doOnCompleted(() -> {
                                         log.info("Purging {} from cache.", details);

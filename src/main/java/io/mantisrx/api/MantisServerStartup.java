@@ -16,6 +16,7 @@
 
 package io.mantisrx.api;
 
+import com.google.inject.name.Named;
 import com.netflix.appinfo.ApplicationInfoManager;
 import com.netflix.config.DynamicIntProperty;
 import com.netflix.discovery.EurekaClient;
@@ -33,12 +34,14 @@ import com.netflix.zuul.context.SessionContextDecorator;
 import com.netflix.zuul.netty.server.BaseServerStartup;
 import com.netflix.zuul.netty.server.DirectMemoryMonitor;
 import io.mantisrx.api.initializers.MantisApiServerChannelInitializer;
+import io.mantisrx.api.push.ConnectionBroker;
 import io.mantisrx.api.tunnel.MantisCrossRegionalClient;
 import io.mantisrx.client.MantisClient;
 import io.mantisrx.server.master.client.MasterClientWrapper;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.group.ChannelGroup;
 import org.apache.commons.configuration.AbstractConfiguration;
+import rx.Scheduler;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -52,6 +55,8 @@ public class MantisServerStartup extends BaseServerStartup {
     private final MantisClient mantisClient;
     private final MasterClientWrapper masterClientWrapper;
     private final MantisCrossRegionalClient mantisCrossRegionalClient;
+    private final ConnectionBroker connectionBroker;
+    private final Scheduler scheduler;
 
     @Inject
     public MantisServerStartup(ServerStatusManager serverStatusManager, FilterLoader filterLoader,
@@ -63,7 +68,9 @@ public class MantisServerStartup extends BaseServerStartup {
                                AbstractConfiguration configurationManager,
                                MasterClientWrapper masterClientWrapper,
                                MantisClient mantisClient,
-                               MantisCrossRegionalClient mantisCrossRegionalClient
+                               MantisCrossRegionalClient mantisCrossRegionalClient,
+                               ConnectionBroker connectionBroker,
+                               @Named("io-scheduler") Scheduler scheduler
                                ) {
         super(serverStatusManager, filterLoader, sessionCtxDecorator, usageNotifier, reqCompleteHandler, registry,
                 directMemoryMonitor, eventLoopGroupMetrics, discoveryClient, applicationInfoManager,
@@ -71,6 +78,8 @@ public class MantisServerStartup extends BaseServerStartup {
         this.mantisClient = mantisClient;
         this.masterClientWrapper = masterClientWrapper;
         this.mantisCrossRegionalClient = mantisCrossRegionalClient;
+        this.connectionBroker = connectionBroker;
+        this.scheduler = scheduler;
 
         // Mantis Master Listener
         masterClientWrapper
@@ -118,7 +127,7 @@ public class MantisServerStartup extends BaseServerStartup {
         addrsToChannels.put(
                 sockAddr,
                 new MantisApiServerChannelInitializer(
-                        String.valueOf(port), channelConfig, channelDependencies, clientChannels, pushPrefixes, mantisClient, masterClientWrapper, mantisCrossRegionalClient, false));
+                        String.valueOf(port), channelConfig, channelDependencies, clientChannels, pushPrefixes, mantisClient, masterClientWrapper, mantisCrossRegionalClient, connectionBroker, scheduler, false));
         logAddrConfigured(sockAddr);
 
         return Collections.unmodifiableMap(addrsToChannels);

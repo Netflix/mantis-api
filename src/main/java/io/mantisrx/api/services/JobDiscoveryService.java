@@ -28,6 +28,7 @@ import io.mantisrx.client.MantisClient;
 import io.mantisrx.server.core.JobSchedulingInfo;
 import lombok.extern.slf4j.Slf4j;
 import rx.Observable;
+import rx.Scheduler;
 import rx.Subscription;
 import rx.functions.Action1;
 import rx.functions.Func1;
@@ -35,6 +36,7 @@ import rx.schedulers.Schedulers;
 import rx.subjects.BehaviorSubject;
 import rx.subjects.Subject;
 
+import java.time.chrono.IsoChronology;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -115,12 +117,13 @@ public class JobDiscoveryService {
         private final Action1 doOnZeroConnections;
         private final Subject<JobSchedulingInfo, JobSchedulingInfo> schedulingInfoBehaviorSubjectingSubject = BehaviorSubject.create();
         private final Registry registry;
+        private final Scheduler scheduler;
 
         private final Counter cleanupCounter;
         private final AtomicLong subscriberCountGauge;
 
-        public JobSchedulingInfoSubjectHolder(MantisClient mantisClient, String jobId, Action1 onZeroConnections, Registry registry) {
-            this(mantisClient, jobId, onZeroConnections, 5, registry);
+        public JobSchedulingInfoSubjectHolder(MantisClient mantisClient, String jobId, Action1 onZeroConnections, Registry registry, Scheduler scheduler) {
+            this(mantisClient, jobId, onZeroConnections, 5, registry, scheduler);
         }
 
         /**
@@ -135,7 +138,8 @@ public class JobDiscoveryService {
                                        String jobId,
                                        Action1 onZeroConnections,
                                        int retryCount,
-                                       Registry registry) {
+                                       Registry registry,
+                                       Scheduler scheduler) {
             Preconditions.checkNotNull(mantisClient, "Mantis Client cannot be null");
             Preconditions.checkNotNull(jobId, "JobId cannot be null");
             Preconditions.checkArgument(!jobId.isEmpty(), "JobId cannot be empty");
@@ -146,6 +150,7 @@ public class JobDiscoveryService {
             this.doOnZeroConnections = onZeroConnections;
             this.retryLogic = RetryUtils.getRetryFunc(log, retryCount);
             this.registry = registry;
+            this.scheduler = scheduler;
 
 
             cleanupCounter = SpectatorUtils.newCounter("mantisapi.schedulingChanges.cleanupCount", "", "jobId", jobId);
@@ -170,7 +175,7 @@ public class JobDiscoveryService {
                             schedulingInfoBehaviorSubjectingSubject.toSerialized().onCompleted();
                             doOnZeroConnections.call(jobId);
                         })
-                        .subscribeOn(Schedulers.io())
+                        .subscribeOn(scheduler)
                         .subscribe((schedInfo) -> schedulingInfoBehaviorSubjectingSubject.onNext(schedInfo));
                 initComplete.countDown();
 
@@ -278,12 +283,13 @@ public class JobDiscoveryService {
         private CountDownLatch initComplete = new CountDownLatch(1);
         private final Action1 doOnZeroConnections;
         private final Subject<JobSchedulingInfo, JobSchedulingInfo> discoveryInfoBehaviorSubject = BehaviorSubject.create();
+        private final Scheduler scheduler;
 
         private final Counter cleanupCounter;
         private final AtomicLong subscriberCountGauge;
 
-        public JobDiscoveryInfoSubjectHolder(MantisClient mantisClient, JobDiscoveryLookupKey lookupKey, Action1 onZeroConnections) {
-            this(mantisClient, lookupKey, onZeroConnections, 5);
+        public JobDiscoveryInfoSubjectHolder(MantisClient mantisClient, JobDiscoveryLookupKey lookupKey, Action1 onZeroConnections, Scheduler scheduler) {
+            this(mantisClient, lookupKey, onZeroConnections, 5, scheduler);
         }
 
         /**
@@ -297,7 +303,8 @@ public class JobDiscoveryService {
         JobDiscoveryInfoSubjectHolder(MantisClient mantisClient,
                                       JobDiscoveryLookupKey lookupKey,
                                       Action1 onZeroConnections,
-                                      int retryCount) {
+                                      int retryCount,
+                                      Scheduler scheduler) {
             Preconditions.checkNotNull(mantisClient, "Mantis Client cannot be null");
             Preconditions.checkNotNull(lookupKey, "lookup key cannot be null");
             Preconditions.checkArgument(lookupKey.getId() != null && !lookupKey.getId().isEmpty(), "lookup key cannot be empty or null");
@@ -307,6 +314,7 @@ public class JobDiscoveryService {
             this.mantisClient = mantisClient;
             this.doOnZeroConnections = onZeroConnections;
             this.retryLogic = RetryUtils.getRetryFunc(log, retryCount);
+            this.scheduler = scheduler;
 
             cleanupCounter = SpectatorUtils.newCounter("mantisapi.discoveryinfo.cleanupCount", "", "lookupKey", lookupKey.getId());
             subscriberCountGauge = SpectatorUtils.newGauge("mantisapi.discoveryinfo.subscriberCount", "",
@@ -344,7 +352,7 @@ public class JobDiscoveryService {
                             discoveryInfoBehaviorSubject.toSerialized().onCompleted();
                             doOnZeroConnections.call(lookupKey);
                         })
-                        .subscribeOn(Schedulers.io())
+                        .subscribeOn(scheduler)
                         .subscribe((schedInfo) -> discoveryInfoBehaviorSubject.onNext(schedInfo));
                 initComplete.countDown();
 
@@ -435,22 +443,25 @@ public class JobDiscoveryService {
 
 
     private final MantisClient mantisClient;
+    private final Scheduler scheduler;
     private final AtomicDouble subjectMapSizeGauge;
+
 
     private int retryCount = 5;
     private static JobDiscoveryService INSTANCE = null;
 
-    public static synchronized JobDiscoveryService getInstance(MantisClient mantisClient) {
+    public static synchronized JobDiscoveryService getInstance(MantisClient mantisClient, Scheduler scheduler) {
         if (INSTANCE == null) {
-            INSTANCE = new JobDiscoveryService(mantisClient);
+            INSTANCE = new JobDiscoveryService(mantisClient, scheduler);
         }
         return INSTANCE;
     }
 
-    private JobDiscoveryService(final MantisClient mClient) {
+    private JobDiscoveryService(final MantisClient mClient, Scheduler scheduler) {
         Preconditions.checkNotNull(mClient, "mantisClient cannot be null");
         this.mantisClient = mClient;
         this.subjectMapSizeGauge = SpectatorUtils.newGauge("mantisapi.discoveryInfo.subjectMapSize", "mantisapi.discoveryInfo.subjectMapSize", new AtomicDouble(0.0));
+        this.scheduler = scheduler;
     }
 
     /**
@@ -485,7 +496,7 @@ public class JobDiscoveryService {
         Preconditions.checkNotNull(lookupKey, "lookup key cannot be null for fetching job discovery info");
         Preconditions.checkArgument(lookupKey.getId() != null && !lookupKey.getId().isEmpty(), "Lookup ID cannot be null or empty" + lookupKey);
         subjectMapSizeGauge.set(subjectMap.size());
-        return subjectMap.computeIfAbsent(lookupKey, (jc) -> new JobDiscoveryInfoSubjectHolder(mantisClient, jc, removeSubjectAction, this.retryCount)).jobDiscoveryInfoStream();
+        return subjectMap.computeIfAbsent(lookupKey, (jc) -> new JobDiscoveryInfoSubjectHolder(mantisClient, jc, removeSubjectAction, this.retryCount, scheduler)).jobDiscoveryInfoStream();
     }
 
     /**

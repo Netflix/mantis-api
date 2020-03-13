@@ -16,6 +16,7 @@
 package io.mantisrx.api.services;
 
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import com.netflix.config.DynamicStringProperty;
 import com.netflix.mantis.discovery.proto.AppJobClustersMap;
 import com.netflix.spectator.api.Counter;
@@ -28,6 +29,7 @@ import io.vavr.control.Either;
 import io.vavr.control.Option;
 import lombok.extern.slf4j.Slf4j;
 import rx.Observable;
+import rx.Scheduler;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -41,6 +43,7 @@ public class AppStreamDiscoveryService {
     private final AtomicReference<AppJobClustersMap> appJobClusterMappings = new AtomicReference<>();
 
     private final MantisClient mantisClient;
+    private final Scheduler scheduler;
     private final Counter appJobClusterMappingNullCount;
     private final Counter appJobClusterMappingRequestCount;
     private final Counter appJobClusterMappingFailCount;
@@ -48,8 +51,9 @@ public class AppStreamDiscoveryService {
     private final DynamicStringProperty appJobClustersProp = new DynamicStringProperty("mreAppJobClusterMap", "");
 
     @Inject
-    public AppStreamDiscoveryService(MantisClient mantisClient) {
+    public AppStreamDiscoveryService(MantisClient mantisClient, @Named("io-scheduler") Scheduler scheduler) {
         this.mantisClient = mantisClient;
+        this.scheduler = scheduler;
         this.appJobClusterMappingNullCount = SpectatorUtils.newCounter("appJobClusterMappingNull", "mantisapi");
         this.appJobClusterMappingRequestCount = SpectatorUtils.newCounter("appJobClusterMappingRequest", "mantisapi", "app", "unknown");
         this.appJobClusterMappingFailCount = SpectatorUtils.newCounter("appJobClusterMappingFail", "mantisapi");
@@ -129,7 +133,7 @@ public class AppStreamDiscoveryService {
 
     // TODO: Does this block?
     private Option<JobSchedulingInfo> getJobDiscoveryInfo(String jobCluster) {
-        JobDiscoveryService jdim = JobDiscoveryService.getInstance(mantisClient);
+        JobDiscoveryService jdim = JobDiscoveryService.getInstance(mantisClient, scheduler);
         return jdim
                 .jobDiscoveryInfoStream(jdim.key(JobDiscoveryService.LookupType.JOB_CLUSTER, jobCluster))
                 .map(Option::of)

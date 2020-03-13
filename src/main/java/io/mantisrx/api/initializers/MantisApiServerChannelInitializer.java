@@ -33,11 +33,13 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.group.ChannelGroup;
+import io.netty.handler.codec.PrematureChannelClosureException;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
+import rx.Scheduler;
 
 import javax.net.ssl.SSLException;
 import java.util.List;
@@ -52,6 +54,7 @@ public class MantisApiServerChannelInitializer extends BaseZuulChannelInitialize
     private final ConnectionBroker connectionBroker;
     private final MasterClientWrapper masterClientWrapper;
     private final MantisCrossRegionalClient mantisCrossRegionalClient;
+    private final Scheduler scheduler;
     private final List<String> pushPrefixes;
     private final boolean sslEnabled;
 
@@ -64,13 +67,16 @@ public class MantisApiServerChannelInitializer extends BaseZuulChannelInitialize
             MantisClient mantisClient,
             MasterClientWrapper masterClientWrapper,
             MantisCrossRegionalClient mantisCrossRegionalClient,
+            ConnectionBroker connectionBroker,
+            Scheduler scheduler,
             boolean sslEnabled) {
         super(metricId, channelConfig, channelDependencies, channels);
 
         this.pushPrefixes = pushPrefixes;
-        this.connectionBroker = new ConnectionBroker(mantisClient);
+        this.connectionBroker = connectionBroker;
         this.masterClientWrapper = masterClientWrapper;
         this.mantisCrossRegionalClient = mantisCrossRegionalClient;
+        this.scheduler = scheduler;
         this.sslEnabled = sslEnabled;
 
         this.isSSlFromIntermediary = channelConfig.get(CommonChannelConfigKeys.isSSlFromIntermediary);
@@ -92,6 +98,8 @@ public class MantisApiServerChannelInitializer extends BaseZuulChannelInitialize
             sslContext = null;
         }
     }
+
+
 
 
     @Override
@@ -149,7 +157,7 @@ public class MantisApiServerChannelInitializer extends BaseZuulChannelInitialize
     protected void addRegionalHandlers(final ChannelPipeline pipeline) {
         pipeline.addLast(new ChunkedWriteHandler());
         pipeline.addLast(new HttpObjectAggregator(10 * 1024 * 1024));
-        pipeline.addLast(new CrossRegionHandler(pushPrefixes, mantisCrossRegionalClient));
+        pipeline.addLast(new CrossRegionHandler(pushPrefixes, mantisCrossRegionalClient, scheduler));
     }
 
     /**

@@ -18,6 +18,8 @@ package io.mantisrx.api;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
+import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import com.netflix.config.ConfigurationManager;
 import com.netflix.discovery.AbstractDiscoveryClientOptionalArgs;
 import com.netflix.discovery.DiscoveryClient;
@@ -25,6 +27,7 @@ import com.netflix.netty.common.accesslog.AccessLogPublisher;
 import com.netflix.netty.common.status.ServerStatusManager;
 import com.netflix.spectator.api.DefaultRegistry;
 import com.netflix.spectator.api.Registry;
+import com.netflix.spectator.api.patterns.ThreadPoolMonitor;
 import com.netflix.zuul.BasicRequestCompleteHandler;
 import com.netflix.zuul.FilterFileManager;
 import com.netflix.zuul.RequestCompleteHandler;
@@ -35,6 +38,7 @@ import com.netflix.zuul.netty.server.BaseServerStartup;
 import com.netflix.zuul.netty.server.ClientRequestReceiver;
 import com.netflix.zuul.origins.BasicNettyOriginManager;
 import com.netflix.zuul.origins.OriginManager;
+import io.mantisrx.api.push.ConnectionBroker;
 import io.mantisrx.api.services.artifacts.ArtifactManager;
 import io.mantisrx.api.services.artifacts.InMemoryArtifactManager;
 import com.netflix.zuul.stats.BasicRequestMetricsPublisher;
@@ -44,8 +48,11 @@ import io.mantisrx.api.tunnel.NoOpCrossRegionalClient;
 import io.mantisrx.client.MantisClient;
 import io.mantisrx.server.master.client.MasterClientWrapper;
 import org.apache.commons.configuration.AbstractConfiguration;
+import rx.Scheduler;
+import rx.schedulers.Schedulers;
 
 import java.util.Properties;
+import java.util.concurrent.*;
 
 public class MantisAPIModule extends AbstractModule {
     @Override
@@ -80,6 +87,7 @@ public class MantisAPIModule extends AbstractModule {
     }
 
     @Provides
+    @Singleton
     MasterClientWrapper getMasterClientWrapper(AbstractConfiguration configuration) {
         Properties props = new Properties();
         configuration.getKeys("mantis").forEachRemaining(key -> {
@@ -89,13 +97,28 @@ public class MantisAPIModule extends AbstractModule {
         return new MasterClientWrapper(props);
     }
 
-    @Provides MantisClient getMantisClient(AbstractConfiguration configuration) {
+    @Provides @Singleton MantisClient getMantisClient(AbstractConfiguration configuration) {
         Properties props = new Properties();
         configuration.getKeys("mantis").forEachRemaining(key -> {
             props.put(key, configuration.getString(key));
         });
 
         return new MantisClient(props);
+    }
+
+    @Provides
+    @Singleton
+    ConnectionBroker getConnectionBroker(MantisClient mantisClient, @Named("io-scheduler") Scheduler scheduler) {
+        return new ConnectionBroker(mantisClient, scheduler);
+    }
+
+    @Provides
+    @Singleton
+    @Named("io-scheduler")
+    Scheduler getScheduler(Registry registry) {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(16, 128, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+        ThreadPoolMonitor.attach(registry, executor, "io-thread-pool");
+        return Schedulers.from(executor);
     }
 
 }
