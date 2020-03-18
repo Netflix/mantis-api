@@ -71,9 +71,6 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private final MantisCrossRegionalClient nfMantisCrossRegionalClient;
     private final Scheduler scheduler;
 
-    private static final Func1<Observable<? extends Throwable>, Observable<?>> retryLogic =
-            RetryUtils.getRetryFunc(log, 5);
-
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private Subscription subscription = null;
@@ -167,7 +164,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                                     throw new RuntimeException(t);
                                 return data;
                             })
-                            .retryWhen(retryLogic)
+                            .retryWhen(RetryUtils.getRetryFunc(log, uri + " in " + region))
                             .take(1)
                             .onErrorReturn(t -> new RegionData(region, false, t.getMessage(), 0));
                 })
@@ -187,7 +184,6 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                 ? Arrays.asList("us-east-1", "us-west-2", "eu-west-1")
                 : Collections.singletonList(getRegion(request.uri()));
 
-        // TODO: Need to add tunnel ping params, origin region.
         log.info("Relaying POST URI {} to {}.", uri, regions);
         final AtomicReference<Throwable> ref = new AtomicReference<>();
 
@@ -219,7 +215,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                                     throw new RuntimeException(t);
                                 return data;
                             })
-                            .retryWhen(retryLogic)
+                            .retryWhen(RetryUtils.getRetryFunc(log, uri + " in " + region))
                             .take(1)
                             .onErrorReturn(t -> new RegionData(region, false, t.getMessage(), 0));
                 })
@@ -259,7 +255,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                     log.info("Connecting to remote region {} at {}.", region, uri);
                     return nfMantisCrossRegionalClient.getSecureSseClient(region)
                             .submit(HttpClientRequest.createGet(uri))
-                            .retryWhen(retryLogic)
+                            .retryWhen(RetryUtils.getRetryFunc(log, uri + " in " + region))
                             .doOnError(throwable -> log.warn(
                                     "Error getting response from remote SSE server for uri {} in region {}: {}",
                                     uri, region, throwable.getMessage(), throwable)

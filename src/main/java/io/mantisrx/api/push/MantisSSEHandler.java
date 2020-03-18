@@ -162,13 +162,13 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
     public String jobSubmit(FullHttpRequest request) {
         final String API_JOB_SUBMIT_PATH = "/api/submit";
 
-        String content = request.content().toString(Charset.forName("UTF-8"));
+        String content = request.content().toString(StandardCharsets.UTF_8);
         return callPostOnMaster(masterClientWrapper.getMasterMonitor().getMasterObservable(), API_JOB_SUBMIT_PATH, content)
-                .retryWhen(RetryUtils.getRetryFunc(log))
+                .retryWhen(RetryUtils.getRetryFunc(log, API_JOB_SUBMIT_PATH))
                 .flatMap(masterResponse -> masterResponse.getByteBuf()
                         .take(1)
                         .map(byteBuf -> {
-                            final String s = byteBuf.toString(Charset.forName("UTF-8"));
+                            final String s = byteBuf.toString(StandardCharsets.UTF_8);
                             log.info("response: " + s);
                             return s;
                         }))

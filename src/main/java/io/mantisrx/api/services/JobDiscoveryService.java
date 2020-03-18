@@ -107,7 +107,6 @@ public class JobDiscoveryService {
 
     public class JobSchedulingInfoSubjectHolder implements AutoCloseable {
 
-        private final Func1<Observable<? extends Throwable>, Observable<?>> retryLogic;
         private Subscription subscription;
         private final AtomicInteger subscriberCount = new AtomicInteger();
         private final String jobId;
@@ -148,7 +147,6 @@ public class JobDiscoveryService {
             this.jobId = jobId;
             this.mantisClient = mantisClient;
             this.doOnZeroConnections = onZeroConnections;
-            this.retryLogic = RetryUtils.getRetryFunc(log, retryCount);
             this.registry = registry;
             this.scheduler = scheduler;
 
@@ -166,7 +164,7 @@ public class JobDiscoveryService {
         private void init() {
             if (!inited.getAndSet(true)) {
                 subscription = mantisClient.getSchedulingChanges(jobId)
-                        .retryWhen(retryLogic)
+                        .retryWhen(RetryUtils.getRetryFunc(log, "job scheduling information for " + jobId))
                         .doOnError((t) -> {
                             schedulingInfoBehaviorSubjectingSubject.toSerialized().onError(t);
                             doOnZeroConnections.call(jobId);
@@ -274,7 +272,6 @@ public class JobDiscoveryService {
 
     public class JobDiscoveryInfoSubjectHolder implements AutoCloseable {
 
-        private final Func1<Observable<? extends Throwable>, Observable<?>> retryLogic;
         private Subscription subscription;
         private final AtomicInteger subscriberCount = new AtomicInteger();
         private final JobDiscoveryLookupKey lookupKey;
@@ -313,7 +310,6 @@ public class JobDiscoveryService {
             this.lookupKey = lookupKey;
             this.mantisClient = mantisClient;
             this.doOnZeroConnections = onZeroConnections;
-            this.retryLogic = RetryUtils.getRetryFunc(log, retryCount);
             this.scheduler = scheduler;
 
             cleanupCounter = SpectatorUtils.newCounter("mantisapi.discoveryinfo.cleanupCount", "", "lookupKey", lookupKey.getId());
@@ -341,7 +337,7 @@ public class JobDiscoveryService {
                         throw new IllegalArgumentException("lookup key type is not supported " + lookupKey.getLookupType());
                 }
                 subscription = jobSchedulingInfoObs
-                        .retryWhen(retryLogic)
+                        .retryWhen(RetryUtils.getRetryFunc(log, "job scheduling info for (" + lookupKey.getLookupType() + ") " + lookupKey.id))
                         .doOnError((t) -> {
                             log.info("cleanup jobDiscoveryInfo onError for {}", lookupKey);
                             discoveryInfoBehaviorSubject.toSerialized().onError(t);
