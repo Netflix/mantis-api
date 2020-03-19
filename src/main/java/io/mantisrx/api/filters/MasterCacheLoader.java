@@ -2,9 +2,12 @@ package io.mantisrx.api.filters;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheStats;
+import com.google.inject.Inject;
 import com.netflix.config.DynamicBooleanProperty;
 import com.netflix.config.DynamicIntProperty;
 import com.netflix.spectator.api.BasicTag;
+import com.netflix.spectator.api.Registry;
 import com.netflix.spectator.api.Spectator;
 import com.netflix.spectator.api.patterns.PolledMeter;
 import com.netflix.zuul.filters.http.HttpOutboundSyncFilter;
@@ -15,7 +18,6 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class MasterCacheLoader extends HttpOutboundSyncFilter {
-
 
     @Override
     public boolean needsBodyBuffered(HttpResponseMessage message) {
@@ -31,11 +33,23 @@ public class MasterCacheLoader extends HttpOutboundSyncFilter {
             .expireAfterWrite(cacheDurationSeconds.get(), TimeUnit.SECONDS)
             .build();
 
-    static {
-        PolledMeter.using(Spectator.globalRegistry())
+    @Inject
+    public MasterCacheLoader(Registry registry) {
+        CacheStats stats = masterCache.stats();
+        PolledMeter.using(registry)
                 .withName("mantis.api.cache.size")
                 .withTag(new BasicTag("id", "api"))
                 .monitorMonotonicCounter(masterCache, Cache::size);
+
+        PolledMeter.using(registry)
+                .withName("mantis.api.cache.hitCount")
+                .withTag(new BasicTag("id", "api"))
+                .monitorMonotonicCounter(stats, CacheStats::hitCount);
+
+        PolledMeter.using(registry)
+                .withName("mantis.api.cache.missCount")
+                .withTag(new BasicTag("id", "api"))
+                .monitorMonotonicCounter(stats, CacheStats::missCount);
     }
 
     @Override

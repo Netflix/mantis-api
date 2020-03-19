@@ -23,7 +23,6 @@ public class MasterCacheHitChecker extends HttpInboundSyncFilter {
     private static DynamicBooleanProperty cacheEnabled = new DynamicBooleanProperty("mantisapi.cache.enabled", false);
     private static final ConcurrentHashMap<String, Counter> cacheHitCounters = new ConcurrentHashMap<>(500);
     private static final ConcurrentHashMap<String, Counter> cacheMissCounters = new ConcurrentHashMap<>(500);
-    private Counter cacheRaceConditionHit = SpectatorUtils.newCounter("mantis.api.cache.exception", "api");
     private static final String CACHE_HIT_COUNTER_NAME = "mantis.api.cache.count";
     private final List<String> pushPrefixes;
 
@@ -45,11 +44,6 @@ public class MasterCacheHitChecker extends HttpInboundSyncFilter {
                 response.getHeaders().set(HttpHeaderNames.CONTENT_TYPE.toString(), HttpHeaderValues.APPLICATION_JSON.toString());
                 response.getHeaders().set("x-nflx-mantisapi-cached", "true");
                 request.getContext().setStaticResponse(response);
-
-                if (bodyText == null) {
-                    cacheRaceConditionHit.increment();
-                    log.error("Master cache race condition hit! shouldFilter returned a cache hit but apply found a cold cache for {}.", key);
-                }
 
                 cacheHitCounters.computeIfAbsent(key,
                         k -> SpectatorUtils.newCounter(CACHE_HIT_COUNTER_NAME, "api", "endpoint", k, "class", "hit"))
