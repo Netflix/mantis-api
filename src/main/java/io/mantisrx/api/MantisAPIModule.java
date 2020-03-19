@@ -51,6 +51,8 @@ import org.apache.commons.configuration.AbstractConfiguration;
 import rx.Scheduler;
 import rx.schedulers.Schedulers;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.*;
 
@@ -84,6 +86,8 @@ public class MantisAPIModule extends AbstractModule {
 
         bind(ArtifactManager.class).to(InMemoryArtifactManager.class);
         bind(MantisCrossRegionalClient.class).to(NoOpCrossRegionalClient.class);
+
+
     }
 
     @Provides
@@ -119,6 +123,25 @@ public class MantisAPIModule extends AbstractModule {
         ThreadPoolExecutor executor = new ThreadPoolExecutor(16, 128, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
         ThreadPoolMonitor.attach(registry, executor, "io-thread-pool");
         return Schedulers.from(executor);
+    }
+
+    @Provides
+    @Singleton
+    @Named("push-prefixes")
+    List<String> getPushPrefixes() {
+        List<String> pushPrefixes = new ArrayList<>(10);
+        pushPrefixes.add("/jobconnectbyid");
+        pushPrefixes.add("/api/v1/jobconnectbyid");
+        pushPrefixes.add("/jobconnectbyname");
+        pushPrefixes.add("/api/v1/jobconnectbyname");
+        pushPrefixes.add("/jobsubmitandconnect");
+        pushPrefixes.add("/api/v1/jobsubmitandconnect");
+        pushPrefixes.add("/jobClusters/discoveryInfoStream");
+        pushPrefixes.add("/jobstatus");
+        pushPrefixes.add("/api/v1/jobstatus");
+        pushPrefixes.add("/api/v1/jobs/schedulingInfo/");
+
+        return pushPrefixes;
     }
 
 }

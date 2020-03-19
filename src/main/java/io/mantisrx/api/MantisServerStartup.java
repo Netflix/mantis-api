@@ -57,6 +57,7 @@ public class MantisServerStartup extends BaseServerStartup {
     private final MantisCrossRegionalClient mantisCrossRegionalClient;
     private final ConnectionBroker connectionBroker;
     private final Scheduler scheduler;
+    private final List<String> pushPrefixes;
 
     @Inject
     public MantisServerStartup(ServerStatusManager serverStatusManager, FilterLoader filterLoader,
@@ -70,7 +71,8 @@ public class MantisServerStartup extends BaseServerStartup {
                                MantisClient mantisClient,
                                MantisCrossRegionalClient mantisCrossRegionalClient,
                                ConnectionBroker connectionBroker,
-                               @Named("io-scheduler") Scheduler scheduler
+                               @Named("io-scheduler") Scheduler scheduler,
+                               @Named("push-prefixes") List<String> pushPrefixes
                                ) {
         super(serverStatusManager, filterLoader, sessionCtxDecorator, usageNotifier, reqCompleteHandler, registry,
                 directMemoryMonitor, eventLoopGroupMetrics, discoveryClient, applicationInfoManager,
@@ -80,6 +82,7 @@ public class MantisServerStartup extends BaseServerStartup {
         this.mantisCrossRegionalClient = mantisCrossRegionalClient;
         this.connectionBroker = connectionBroker;
         this.scheduler = scheduler;
+        this.pushPrefixes = pushPrefixes;
 
         // Mantis Master Listener
         masterClientWrapper
@@ -112,17 +115,7 @@ public class MantisServerStartup extends BaseServerStartup {
         channelConfig.set(CommonChannelConfigKeys.isSSlFromIntermediary, false);
         channelConfig.set(CommonChannelConfigKeys.withProxyProtocol, false);
 
-        List<String> pushPrefixes = new ArrayList<>(10);
-        pushPrefixes.add("/jobconnectbyid");
-        pushPrefixes.add("/api/v1/jobconnectbyid");
-        pushPrefixes.add("/jobconnectbyname");
-        pushPrefixes.add("/api/v1/jobconnectbyname");
-        pushPrefixes.add("/jobsubmitandconnect");
-        pushPrefixes.add("/api/v1/jobsubmitandconnect");
-        pushPrefixes.add("/jobClusters/discoveryInfoStream");
-        pushPrefixes.add("/jobstatus");
-        pushPrefixes.add("/api/v1/jobstatus");
-        pushPrefixes.add("/api/v1/jobs/schedulingInfo/");
+
 
         addrsToChannels.put(
                 sockAddr,
