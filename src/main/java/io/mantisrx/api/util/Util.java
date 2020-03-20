@@ -92,8 +92,6 @@ public class Util {
         tags.add("urlPath");
         tags.add(queryStringDecoder.path());
 
-        log.info(tags.toString());
-
         return tags.toArray(new String[]{});
     }
 }

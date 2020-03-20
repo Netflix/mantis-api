@@ -12,11 +12,14 @@ import io.vavr.control.Try;
 import lombok.extern.slf4j.Slf4j;
 import rx.Observable;
 import rx.Scheduler;
+import rx.observables.ConnectableObservable;
 import rx.schedulers.Schedulers;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static io.mantisrx.api.push.PushConnectionDetails.TARGET_TYPE.*;
 
 @Slf4j
 public class ConnectionBroker {
@@ -47,7 +50,12 @@ public class ConnectionBroker {
                                         log.info("Purging {} from cache.", details);
                                         connectionCache.remove(details);
                                     })
-                                    .share());
+                                    .doOnCompleted(() -> {
+                                        log.info("Purging {} from cache.", details);
+                                        connectionCache.remove(details);
+                                    })
+                                    .share()
+                    .replay(1));
                     break;
                 case CONNECT_BY_ID:
                     connectionCache.put(details,
@@ -59,9 +67,19 @@ public class ConnectionBroker {
                                         log.info("Purging {} from cache.", details);
                                         connectionCache.remove(details);
                                     })
+                                    .doOnUnsubscribe(() -> {
+                                        log.info("Purging {} from cache.", details);
+                                        connectionCache.remove(details);
+                                    })
                                     .share());
                     break;
+
+                    // TODO: The three connections below are not currently being cached because they are cold then hot. Just need to work out a pattern for it.
                 case JOB_STATUS:
+                    return mantisClient
+                            .getJobStatusObservable(details.target)
+                            .subscribeOn(scheduler);
+                    /*
                     connectionCache.put(details,
                             mantisClient
                                     .getJobStatusObservable(details.target)
@@ -70,9 +88,18 @@ public class ConnectionBroker {
                                         log.info("Purging {} from cache.", details);
                                         connectionCache.remove(details);
                                     })
+                                    .doOnUnsubscribe(() -> {
+                                        log.info("Purging {} from cache.", details);
+                                        connectionCache.remove(details);
+                                    })
                                     .share());
                     break;
+                     */
                 case JOB_SCHEDULING_INFO:
+                    return mantisClient.getSchedulingChanges(details.target)
+                            .subscribeOn(scheduler)
+                            .map(changes -> Try.of(() -> JacksonObjectMapper.getInstance().writeValueAsString(changes)).getOrElse("Error"));
+                    /*
                     connectionCache.put(details,
                             mantisClient.getSchedulingChanges(details.target)
                                     .subscribeOn(scheduler)
@@ -81,11 +108,21 @@ public class ConnectionBroker {
                                         log.info("Purging {} from cache.", details);
                                         connectionCache.remove(details);
                                     })
+                                    .doOnUnsubscribe(() -> {
+                                        log.info("Purging {} from cache.", details);
+                                        connectionCache.remove(details);
+                                    })
+                                    .replay(1)
                                     .share());
                     break;
+                     */
+
                 case JOB_CLUSTER_DISCOVERY:
+                    return jobDiscoveryService.jobDiscoveryInfoStream(jobDiscoveryService.key(JobDiscoveryService.LookupType.JOB_CLUSTER, details.target))
+                            .subscribeOn(scheduler)
+                            .map(jdi ->Try.of(() -> JacksonObjectMapper.getInstance().writeValueAsString(jdi)).getOrElse("Error"));
+                    /*
                     connectionCache.put(details,
-                            // TODO: We may not want to cache some of these, or maybe replay a few messages given that they follow a cold then hot format.
                             jobDiscoveryService.jobDiscoveryInfoStream(jobDiscoveryService.key(JobDiscoveryService.LookupType.JOB_CLUSTER, details.target))
                                     .subscribeOn(scheduler)
                                     .map(jdi ->Try.of(() -> JacksonObjectMapper.getInstance().writeValueAsString(jdi)).getOrElse("Error"))
@@ -93,8 +130,13 @@ public class ConnectionBroker {
                                         log.info("Purging {} from cache.", details);
                                         connectionCache.remove(details);
                                     })
+                                    .doOnUnsubscribe(() -> {
+                                        log.info("Purging {} from cache.", details);
+                                        connectionCache.remove(details);
+                                    })
                                     .share());
                     break;
+                     */
             }
             log.info("Caching connection for: {}", details);
         }
