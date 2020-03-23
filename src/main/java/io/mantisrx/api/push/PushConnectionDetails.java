@@ -68,7 +68,10 @@ public @Value class PushConnectionDetails {
      * @return The target requested by the URI.
      */
     public static String determineTarget(final String uri) {
-        return uri.replaceFirst("^/(api/v1/)?(jobconnectbyid|jobconnectbyname|jobstatus|jobs/schedulingInfo|jobClusters/discoveryInfoStream)/", "");
+
+        String sanitized =  uri.replaceFirst("^/(api/v1/)?(jobconnectbyid|jobconnectbyname|jobstatus|jobs/schedulingInfo|jobClusters/discoveryInfoStream)/", "");
+        QueryStringDecoder queryStringDecoder = new QueryStringDecoder(sanitized);
+        return queryStringDecoder.path();
     }
 
     public static PushConnectionDetails from(String uri) {
