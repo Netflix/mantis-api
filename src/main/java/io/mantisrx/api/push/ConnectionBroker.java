@@ -42,7 +42,6 @@ public class ConnectionBroker {
             switch (details.type) {
                 case CONNECT_BY_NAME:
                     connectionCache.put(details,
-                            // TODO: Build sink parameters.
                             getResults(false, this.mantisClient, details.target, details.getSinkparameters())
                                     .flatMap(m -> m)
                                     .map(MantisServerSentEvent::getEventAsString)
@@ -55,8 +54,7 @@ public class ConnectionBroker {
                                         log.info("Purging {} from cache.", details);
                                         connectionCache.remove(details);
                                     })
-                                    .share()
-                    .replay(1));
+                                    .share());
                     break;
                 case CONNECT_BY_ID:
                     connectionCache.put(details,
