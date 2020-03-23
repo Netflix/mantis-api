@@ -240,7 +240,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
         response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
         ctx.writeAndFlush(response);
 
-        String uri = getTail(request.uri());
+        String uri = uriWithTunnelParamsAdded(getTail(request.uri()));
         List<String> regions = getRegion(request.uri()).equals("all")
                 ? Arrays.asList("us-east-1", "us-west-2", "eu-west-1")
                 : Collections.singletonList(getRegion(request.uri()));
@@ -251,9 +251,6 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
         Counter numDroppedMessagesCounter = SpectatorUtils.newCounter(Constants.numDroppedMessagesCounterName, "NONE", tags);
         Counter numMessagesCounter = SpectatorUtils.newCounter(Constants.numMessagesCounterName, "NONE", tags);
         Counter numBytesCounter = SpectatorUtils.newCounter(Constants.numBytesCounterName, "NONE", tags);
-
-
-
 
         // TODO: Get the connection broker to share these.
         subscription = Observable.from(regions)
