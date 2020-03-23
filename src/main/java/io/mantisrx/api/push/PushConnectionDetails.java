@@ -1,6 +1,12 @@
 package io.mantisrx.api.push;
 
+import io.mantisrx.runtime.parameter.SinkParameter;
+import io.mantisrx.runtime.parameter.SinkParameters;
+import io.netty.handler.codec.http.QueryStringDecoder;
+import io.vavr.control.Try;
 import lombok.Value;
+
+import java.util.stream.Collectors;
 
 public @Value class PushConnectionDetails {
 
@@ -12,8 +18,28 @@ public @Value class PushConnectionDetails {
         JOB_CLUSTER_DISCOVERY
     }
 
+    private final String uri;
     public final String target;
     public final TARGET_TYPE type;
+
+    public SinkParameters getSinkparameters() {
+        SinkParameters.Builder builder = new SinkParameters.Builder();
+        QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri);
+
+        builder.parameters(queryStringDecoder
+                .parameters()
+                .entrySet()
+                .stream()
+                .flatMap(entry -> entry.getValue()
+                        .stream()
+                        .map(val -> Try.of(() -> new SinkParameter(entry.getKey(), val)))
+                        .filter(Try::isSuccess)
+                        .map(Try::get))
+                .collect(Collectors.toList())
+                .toArray(new SinkParameter[] {}));
+
+        return builder.build();
+    }
 
     /**
      * Determines the connection type for a given push connection.
@@ -43,5 +69,9 @@ public @Value class PushConnectionDetails {
      */
     public static String determineTarget(final String uri) {
         return uri.replaceFirst("^/(api/v1/)?(jobconnectbyid|jobconnectbyname|jobstatus|jobs/schedulingInfo|jobClusters/discoveryInfoStream)/", "");
+    }
+
+    public static PushConnectionDetails from(String uri) {
+        return new PushConnectionDetails(uri, determineTarget(uri), determineTargetType(uri));
     }
 }

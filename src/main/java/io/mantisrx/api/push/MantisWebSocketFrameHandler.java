@@ -31,8 +31,7 @@ public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<Tex
             WebSocketServerProtocolHandler.HandshakeComplete complete = (WebSocketServerProtocolHandler.HandshakeComplete) evt;
 
             final String uri = complete.requestUri();
-            final PushConnectionDetails pcd = new PushConnectionDetails(PushConnectionDetails.determineTarget(uri),
-                    PushConnectionDetails.determineTargetType(uri));
+            final PushConnectionDetails pcd = PushConnectionDetails.from(uri);
 
             final String[] tags = Util.getTaglist(uri, "NONE"); // TODO: Attach an ID to streaming calls via Zuul. This will help access log too.
             Counter numDroppedBytesCounter = SpectatorUtils.newCounter(Constants.numDroppedBytesCounterName, "NONE", tags);

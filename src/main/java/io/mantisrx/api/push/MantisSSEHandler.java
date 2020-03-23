@@ -79,9 +79,8 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
             final String uri = request.uri();
             final PushConnectionDetails pcd =
                     isSubmitAndConnect(request)
-                            ? new PushConnectionDetails(jobSubmit(request), PushConnectionDetails.TARGET_TYPE.CONNECT_BY_ID)
-                            : new PushConnectionDetails(PushConnectionDetails.determineTarget(uri),
-                            PushConnectionDetails.determineTargetType(uri));
+                            ? new PushConnectionDetails(uri, jobSubmit(request), PushConnectionDetails.TARGET_TYPE.CONNECT_BY_ID)
+                            : PushConnectionDetails.from(uri);
             log.info("SSE Connecting for: {}", pcd);
 
             boolean tunnelPingsEnabled = isTunnelPingsEnabled(uri);

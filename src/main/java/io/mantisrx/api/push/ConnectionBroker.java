@@ -42,9 +42,10 @@ public class ConnectionBroker {
             switch (details.type) {
                 case CONNECT_BY_NAME:
                     connectionCache.put(details,
-                            getResults(false, this.mantisClient, details.target, new SinkParameters.Builder().build())
+                            // TODO: Build sink parameters.
+                            getResults(false, this.mantisClient, details.target, details.getSinkparameters())
                                     .flatMap(m -> m)
-                                    .map(m -> m.getEventAsString())
+                                    .map(MantisServerSentEvent::getEventAsString)
                                     .subscribeOn(scheduler)
                                     .doOnUnsubscribe(() -> {
                                         log.info("Purging {} from cache.", details);
@@ -59,9 +60,9 @@ public class ConnectionBroker {
                     break;
                 case CONNECT_BY_ID:
                     connectionCache.put(details,
-                            getResults(true, this.mantisClient, details.target, new SinkParameters.Builder().build())
+                            getResults(true, this.mantisClient, details.target, details.getSinkparameters())
                                     .flatMap(m -> m)
-                                    .map(m -> m.getEventAsString())
+                                    .map(MantisServerSentEvent::getEventAsString)
                                     .subscribeOn(scheduler)
                                     .doOnCompleted(() -> {
                                         log.info("Purging {} from cache.", details);
