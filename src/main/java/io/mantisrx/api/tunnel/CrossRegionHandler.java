@@ -268,17 +268,18 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                                     return Observable.<MantisServerSentEvent>error(new Exception(err));
                                 }
                                 final String originReplacement = "\\{\"" + metaOriginName + "\": \"" + region + "\", ";
-                                return streamContent(remoteResponse, region, hasTunnelPingParam(uri))
+                                return streamContent(remoteResponse, region, uri, hasTunnelPingParam(uri))
                                         .map(datum -> datum.getEventAsString().replaceFirst("^\\{", originReplacement))
                                         .doOnError(t -> log.error(t.getMessage()));
                             })
                             .subscribeOn(scheduler)
                             .observeOn(scheduler)
-                            .doOnError(t -> log.warn("Error streaming in remote data, will retry: " + t.getMessage(), t))
+                            .doOnError(t -> log.warn("Error streaming in remote data ({}). Will retry: {}", region, t.getMessage(), t))
                             .doOnCompleted(() -> log.info(String.format("remote sink connection complete for uri %s, region=%s", uri, region)));
                 })
                 .observeOn(scheduler)
                 .subscribeOn(scheduler)
+                .doOnError(t -> log.error("Error in flatMapped cross-regional observable for {}", uri, t))
                 .subscribe(result -> {
                     ctx.writeAndFlush(Unpooled.copiedBuffer(Constants.SSE_DATA_PREFIX + result
                             +
@@ -299,7 +300,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     }
 
     private Observable<MantisServerSentEvent> streamContent(HttpClientResponse<ServerSentEvent> response, String
-            region, boolean passThruTunnelPings) {
+            region, String uri, boolean passThruTunnelPings) {
 
         Counter numRemoteBytes = SpectatorUtils.newCounter(numRemoteBytesCounterName, "", "region", region);
         Counter numRemoteMessages = SpectatorUtils.newCounter(numRemoteMessagesCounterName, "", "region", region);
@@ -308,7 +309,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
         return response.getContent()
                 .doOnError(t -> log.warn(t.getMessage()))
                 .timeout(3 * TunnelPingIntervalSecs, TimeUnit.SECONDS)
-                .doOnError(t -> log.warn("Timeout getting data from remote conx"))
+                .doOnError(t -> log.warn("Timeout getting data from remote {} connection for {}", region, uri))
                 .filter(sse -> !(!sse.hasEventType() || !sse.getEventTypeAsString().startsWith("error:")) ||
                         passThruTunnelPings || !tunnelPingMessage.equals(sse.contentAsString()))
                 .map(t1 -> {
