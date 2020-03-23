@@ -131,7 +131,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                 ? Arrays.asList("us-east-1", "us-west-2", "eu-west-1")
                 : Collections.singletonList(getRegion(request.uri()));
 
-        String uri = uriWithTunnelParamsAdded(getTail(request.uri()));
+        String uri = getTail(request.uri());
         Observable.from(regions)
                 .flatMap(region -> {
                     final AtomicReference<Throwable> ref = new AtomicReference<>();
@@ -188,7 +188,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
         String content = request.content().toString(Charset.defaultCharset());
         Observable.from(regions)
                 .flatMap(region -> {
-                    HttpClientRequest<String> rq = HttpClientRequest.create(HttpMethod.POST, uriWithTunnelParamsAdded(uri));
+                    HttpClientRequest<String> rq = HttpClientRequest.create(HttpMethod.POST, uri);
                     rq.withRawContent(content, StringTransformer.DEFAULT_INSTANCE);
 
                     return Observable
@@ -376,7 +376,11 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     }
 
     private String uriWithTunnelParamsAdded(String uri) {
-        QueryStringEncoder queryStringEncoder = new QueryStringEncoder(uri);
+        QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri);
+        QueryStringEncoder queryStringEncoder = new QueryStringEncoder(queryStringDecoder.path());
+
+        queryStringDecoder.parameters().forEach((key, value) -> value.forEach(val -> queryStringEncoder.addParam(key, val)));
+
         queryStringEncoder.addParam(TunnelPingParamName, "true");
         queryStringEncoder.addParam(TagsParamName, OriginRegionTagName + TagNameValDelimiter + getLocalRegion());
         return queryStringEncoder.toString();
