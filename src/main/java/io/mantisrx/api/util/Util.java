@@ -67,7 +67,6 @@ public class Util {
         QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri);
         Map<String, List<String>> queryParameters = queryStringDecoder.parameters();
 
-
         final List<String> tags = new LinkedList<>();
         if (queryParameters != null) {
             final List<String> tagVals = queryParameters.get(TagsParamName);

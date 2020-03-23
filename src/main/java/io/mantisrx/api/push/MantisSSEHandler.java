@@ -1,8 +1,6 @@
 package io.mantisrx.api.push;
 
 import com.netflix.spectator.api.Counter;
-import com.netflix.spectator.api.Registry;
-import com.netflix.spectator.api.Tag;
 import com.netflix.zuul.netty.SpectatorUtils;
 import io.mantisrx.api.util.Constants;
 import io.mantisrx.api.util.RetryUtils;
@@ -26,7 +24,6 @@ import mantis.io.reactivex.netty.protocol.http.client.HttpResponseHeaders;
 import rx.Observable;
 import rx.Subscription;
 
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -41,10 +38,6 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
     private final MasterClientWrapper masterClientWrapper;
     private final List<String> pushPrefixes;
     private Subscription subscription;
-
-    private static final String SSE_SUFFIX = "\r\n\r\n";
-    private static final String SSE_PREFIX = "data: ";
-
 
     public MantisSSEHandler(ConnectionBroker connectionBroker, MasterClientWrapper masterClientWrapper,
                             List<String> pushPrefixes) {
@@ -98,13 +91,9 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
                             .map(l -> Constants.TunnelPingMessage)
                             : Observable.empty())
                     .doOnNext(event -> {
-                        String data = SSE_PREFIX + event + SSE_SUFFIX;
+                        String data = Constants.SSE_DATA_PREFIX + event + Constants.SSE_DATA_SUFFIX;
                         if (ctx.channel().isWritable()) {
-                            ctx.writeAndFlush(Unpooled.copiedBuffer(SSE_PREFIX
-                                            + event
-                                            + SSE_SUFFIX,
-                                    StandardCharsets.UTF_8));
-
+                            ctx.writeAndFlush(Unpooled.copiedBuffer(data, StandardCharsets.UTF_8));
                             numMessagesCounter.increment();
                             numBytesCounter.increment(data.length());
                         } else {

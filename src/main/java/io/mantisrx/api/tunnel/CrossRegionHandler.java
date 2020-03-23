@@ -40,7 +40,6 @@ import org.json.JSONObject;
 import rx.Observable;
 import rx.Scheduler;
 import rx.Subscription;
-import rx.functions.Func1;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -64,11 +63,10 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private static final String numRemoteMessagesCounterName = "numRemoteMessages";
     private static final String numSseErrorsCounterName = "numSseErrors";
     public static final long TunnelPingIntervalSecs = 12;
-    public static final String tunnelPingMessage = "MantisApiTunnelPing";
-    public static final String tunnelPingParamName = "MantisApiTunnelPingEnabled";
+
 
     private final List<String> pushPrefixes;
-    private final MantisCrossRegionalClient nfMantisCrossRegionalClient;
+    private final MantisCrossRegionalClient mantisCrossRegionalClient;
     private final Scheduler scheduler;
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -77,10 +75,10 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
     public CrossRegionHandler(
             List<String> pushPrefixes,
-            MantisCrossRegionalClient nfMantisCrossRegionalClient,
+            MantisCrossRegionalClient mantisCrossRegionalClient,
             Scheduler scheduler) {
         this.pushPrefixes = pushPrefixes;
-        this.nfMantisCrossRegionalClient = nfMantisCrossRegionalClient;
+        this.mantisCrossRegionalClient = mantisCrossRegionalClient;
         this.scheduler = scheduler;
     }
 
@@ -133,7 +131,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                 ? Arrays.asList("us-east-1", "us-west-2", "eu-west-1")
                 : Collections.singletonList(getRegion(request.uri()));
 
-        String uri = getTail(request.uri());
+        String uri = uriWithTunnelParamsAdded(getTail(request.uri()));
         Observable.from(regions)
                 .flatMap(region -> {
                     final AtomicReference<Throwable> ref = new AtomicReference<>();
@@ -141,7 +139,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
                     return Observable
                             .create((Observable.OnSubscribe<HttpClient<String, ByteBuf>>) subscriber ->
-                                    subscriber.onNext(nfMantisCrossRegionalClient.getSecureRestClient(region)))
+                                    subscriber.onNext(mantisCrossRegionalClient.getSecureRestClient(region)))
                             .flatMap(client -> {
                                 ref.set(null);
                                 return client.submit(rq)
@@ -195,7 +193,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
                     return Observable
                             .create((Observable.OnSubscribe<HttpClient<String, ByteBuf>>) subscriber ->
-                                    subscriber.onNext(nfMantisCrossRegionalClient.getSecureRestClient(region)))
+                                    subscriber.onNext(mantisCrossRegionalClient.getSecureRestClient(region)))
                             .flatMap(client -> client.submit(rq)
                                     .flatMap(resp -> {
                                         final int code = resp.getStatus().code();
@@ -248,12 +246,20 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                 : Collections.singletonList(getRegion(request.uri()));
 
         log.info("Initiating remote SSE connection to {} in {}.", uri, regions);
+        final String[] tags = Util.getTaglist(uri, "NONE"); // TODO: Attach an ID to streaming calls via Zuul. This will help access log too.
+        Counter numDroppedBytesCounter = SpectatorUtils.newCounter(Constants.numDroppedBytesCounterName, "NONE", tags);
+        Counter numDroppedMessagesCounter = SpectatorUtils.newCounter(Constants.numDroppedMessagesCounterName, "NONE", tags);
+        Counter numMessagesCounter = SpectatorUtils.newCounter(Constants.numMessagesCounterName, "NONE", tags);
+        Counter numBytesCounter = SpectatorUtils.newCounter(Constants.numBytesCounterName, "NONE", tags);
+
+
+
 
         // TODO: Get the connection broker to share these.
         subscription = Observable.from(regions)
                 .flatMap(region -> {
                     log.info("Connecting to remote region {} at {}.", region, uri);
-                    return nfMantisCrossRegionalClient.getSecureSseClient(region)
+                    return mantisCrossRegionalClient.getSecureSseClient(region)
                             .submit(HttpClientRequest.createGet(uri))
                             .retryWhen(RetryUtils.getRetryFunc(log, uri + " in " + region))
                             .doOnError(throwable -> log.warn(
@@ -281,9 +287,15 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                 .subscribeOn(scheduler)
                 .doOnError(t -> log.error("Error in flatMapped cross-regional observable for {}", uri, t))
                 .subscribe(result -> {
-                    ctx.writeAndFlush(Unpooled.copiedBuffer(Constants.SSE_DATA_PREFIX + result
-                            +
-                            Constants.TWO_NEWLINES, StandardCharsets.UTF_8));
+                    String data = SSE_DATA_PREFIX + result + SSE_DATA_SUFFIX;
+                    if (ctx.channel().isWritable()) {
+                        ctx.writeAndFlush(Unpooled.copiedBuffer(data, StandardCharsets.UTF_8));
+                        numMessagesCounter.increment();
+                        numBytesCounter.increment(data.length());
+                    } else {
+                        numDroppedBytesCounter.increment(data.length());
+                        numDroppedMessagesCounter.increment();
+                    }
                 });
     }
 
@@ -296,7 +308,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     }
 
     private boolean hasTunnelPingParam(String uri) {
-        return uri != null && uri.contains(tunnelPingParamName);
+        return uri != null && uri.contains(TunnelPingParamName);
     }
 
     private Observable<MantisServerSentEvent> streamContent(HttpClientResponse<ServerSentEvent> response, String
@@ -311,7 +323,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                 .timeout(3 * TunnelPingIntervalSecs, TimeUnit.SECONDS)
                 .doOnError(t -> log.warn("Timeout getting data from remote {} connection for {}", region, uri))
                 .filter(sse -> !(!sse.hasEventType() || !sse.getEventTypeAsString().startsWith("error:")) ||
-                        passThruTunnelPings || !tunnelPingMessage.equals(sse.contentAsString()))
+                        passThruTunnelPings || !TunnelPingMessage.equals(sse.contentAsString()))
                 .map(t1 -> {
                     String data = "";
                     if (t1.hasEventType() && t1.getEventTypeAsString().startsWith("error:")) {
