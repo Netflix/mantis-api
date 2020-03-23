@@ -247,7 +247,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                 : Collections.singletonList(getRegion(request.uri()));
 
         log.info("Initiating remote SSE connection to {} in {}.", uri, regions);
-        final String[] tags = Util.getTaglist(uri, "NONE"); // TODO: Attach an ID to streaming calls via Zuul. This will help access log too.
+        final String[] tags = Util.getTaglist(request.uri(), "NONE"); // TODO: Attach an ID to streaming calls via Zuul. This will help access log too.
         Counter numDroppedBytesCounter = SpectatorUtils.newCounter(Constants.numDroppedBytesCounterName, "NONE", tags);
         Counter numDroppedMessagesCounter = SpectatorUtils.newCounter(Constants.numDroppedMessagesCounterName, "NONE", tags);
         Counter numMessagesCounter = SpectatorUtils.newCounter(Constants.numMessagesCounterName, "NONE", tags);
