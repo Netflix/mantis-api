@@ -240,7 +240,8 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
         response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
         ctx.writeAndFlush(response);
 
-        String uri = uriWithTunnelParamsAdded(getTail(request.uri()));
+        final boolean sendThroughTunnelPings = hasTunnelPingParam(request.uri());
+        final String uri = uriWithTunnelParamsAdded(getTail(originalUri));
         List<String> regions = getRegion(request.uri()).equals("all")
                 ? Arrays.asList("us-east-1", "us-west-2", "eu-west-1")
                 : Collections.singletonList(getRegion(request.uri()));
@@ -271,7 +272,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                                     return Observable.<MantisServerSentEvent>error(new Exception(err));
                                 }
                                 final String originReplacement = "\\{\"" + metaOriginName + "\": \"" + region + "\", ";
-                                return streamContent(remoteResponse, region, uri, hasTunnelPingParam(uri))
+                                return streamContent(remoteResponse, region, uri, sendThroughTunnelPings)
                                         .map(datum -> datum.getEventAsString().replaceFirst("^\\{", originReplacement))
                                         .doOnError(t -> log.error(t.getMessage()));
                             })
