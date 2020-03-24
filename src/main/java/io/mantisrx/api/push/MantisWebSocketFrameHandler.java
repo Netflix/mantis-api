@@ -2,8 +2,8 @@ package io.mantisrx.api.push;
 
 import com.netflix.spectator.api.Counter;
 import com.netflix.zuul.netty.SpectatorUtils;
-import io.mantisrx.api.util.Constants;
-import io.mantisrx.api.util.Util;
+import io.mantisrx.api.Constants;
+import io.mantisrx.api.Util;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;

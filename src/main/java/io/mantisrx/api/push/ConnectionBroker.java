@@ -1,8 +1,10 @@
 package io.mantisrx.api.push;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.mantisrx.api.services.JobDiscoveryService;
-import io.mantisrx.api.util.JacksonObjectMapper;
 import io.mantisrx.client.MantisClient;
 import io.mantisrx.client.SinkConnectionFunc;
 import io.mantisrx.client.SseSinkConnectionFunction;
@@ -12,28 +14,30 @@ import io.vavr.control.Try;
 import lombok.extern.slf4j.Slf4j;
 import rx.Observable;
 import rx.Scheduler;
-import rx.observables.ConnectableObservable;
-import rx.schedulers.Schedulers;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static io.mantisrx.api.push.PushConnectionDetails.TARGET_TYPE.*;
-
 @Slf4j
+@Singleton
 public class ConnectionBroker {
 
     private final MantisClient mantisClient;
     private final JobDiscoveryService jobDiscoveryService;
     private final Scheduler scheduler;
+    private final ObjectMapper objectMapper;
 
     private final Map<PushConnectionDetails, Observable<String>> connectionCache = new ConcurrentHashMap<>();
 
-    public ConnectionBroker(MantisClient mantisClient, @Named("io-scheduler") Scheduler scheduler) {
+    @Inject
+    public ConnectionBroker(MantisClient mantisClient,
+                            @Named("io-scheduler") Scheduler scheduler,
+                            ObjectMapper objectMapper) {
         this.mantisClient = mantisClient;
         this.jobDiscoveryService = JobDiscoveryService.getInstance(mantisClient, scheduler);
         this.scheduler = scheduler;
+        this.objectMapper = objectMapper;
     }
 
     public Observable<String> connect(PushConnectionDetails details) {
@@ -97,7 +101,7 @@ public class ConnectionBroker {
                 case JOB_SCHEDULING_INFO:
                     return mantisClient.getSchedulingChanges(details.target)
                             .subscribeOn(scheduler)
-                            .map(changes -> Try.of(() -> JacksonObjectMapper.getInstance().writeValueAsString(changes)).getOrElse("Error"));
+                            .map(changes -> Try.of(() -> objectMapper.writeValueAsString(changes)).getOrElse("Error"));
                     /*
                     connectionCache.put(details,
                             mantisClient.getSchedulingChanges(details.target)
@@ -119,7 +123,7 @@ public class ConnectionBroker {
                 case JOB_CLUSTER_DISCOVERY:
                     return jobDiscoveryService.jobDiscoveryInfoStream(jobDiscoveryService.key(JobDiscoveryService.LookupType.JOB_CLUSTER, details.target))
                             .subscribeOn(scheduler)
-                            .map(jdi ->Try.of(() -> JacksonObjectMapper.getInstance().writeValueAsString(jdi)).getOrElse("Error"));
+                            .map(jdi ->Try.of(() -> objectMapper.writeValueAsString(jdi)).getOrElse("Error"));
                     /*
                     connectionCache.put(details,
                             jobDiscoveryService.jobDiscoveryInfoStream(jobDiscoveryService.key(JobDiscoveryService.LookupType.JOB_CLUSTER, details.target))

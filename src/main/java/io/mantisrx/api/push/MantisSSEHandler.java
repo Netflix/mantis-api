@@ -2,9 +2,8 @@ package io.mantisrx.api.push;
 
 import com.netflix.spectator.api.Counter;
 import com.netflix.zuul.netty.SpectatorUtils;
-import io.mantisrx.api.util.Constants;
-import io.mantisrx.api.util.RetryUtils;
-import io.mantisrx.api.util.Util;
+import io.mantisrx.api.Constants;
+import io.mantisrx.api.Util;
 import io.mantisrx.server.core.master.MasterDescription;
 import io.mantisrx.server.master.client.MasterClientWrapper;
 import io.netty.buffer.ByteBuf;
@@ -152,7 +151,7 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
 
         String content = request.content().toString(StandardCharsets.UTF_8);
         return callPostOnMaster(masterClientWrapper.getMasterMonitor().getMasterObservable(), API_JOB_SUBMIT_PATH, content)
-                .retryWhen(RetryUtils.getRetryFunc(log, API_JOB_SUBMIT_PATH))
+                .retryWhen(Util.getRetryFunc(log, API_JOB_SUBMIT_PATH))
                 .flatMap(masterResponse -> masterResponse.getByteBuf()
                         .take(1)
                         .map(byteBuf -> {

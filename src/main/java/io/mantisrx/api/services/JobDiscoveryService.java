@@ -23,7 +23,7 @@ import com.netflix.spectator.api.Counter;
 import com.netflix.spectator.api.Registry;
 import com.netflix.spectator.impl.AtomicDouble;
 import com.netflix.zuul.netty.SpectatorUtils;
-import io.mantisrx.api.util.RetryUtils;
+import io.mantisrx.api.Util;
 import io.mantisrx.client.MantisClient;
 import io.mantisrx.server.core.JobSchedulingInfo;
 import lombok.extern.slf4j.Slf4j;
@@ -31,12 +31,9 @@ import rx.Observable;
 import rx.Scheduler;
 import rx.Subscription;
 import rx.functions.Action1;
-import rx.functions.Func1;
-import rx.schedulers.Schedulers;
 import rx.subjects.BehaviorSubject;
 import rx.subjects.Subject;
 
-import java.time.chrono.IsoChronology;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -164,7 +161,7 @@ public class JobDiscoveryService {
         private void init() {
             if (!inited.getAndSet(true)) {
                 subscription = mantisClient.getSchedulingChanges(jobId)
-                        .retryWhen(RetryUtils.getRetryFunc(log, "job scheduling information for " + jobId))
+                        .retryWhen(Util.getRetryFunc(log, "job scheduling information for " + jobId))
                         .doOnError((t) -> {
                             schedulingInfoBehaviorSubjectingSubject.toSerialized().onError(t);
                             doOnZeroConnections.call(jobId);
@@ -337,7 +334,7 @@ public class JobDiscoveryService {
                         throw new IllegalArgumentException("lookup key type is not supported " + lookupKey.getLookupType());
                 }
                 subscription = jobSchedulingInfoObs
-                        .retryWhen(RetryUtils.getRetryFunc(log, "job scheduling info for (" + lookupKey.getLookupType() + ") " + lookupKey.id))
+                        .retryWhen(Util.getRetryFunc(log, "job scheduling info for (" + lookupKey.getLookupType() + ") " + lookupKey.id))
                         .doOnError((t) -> {
                             log.info("cleanup jobDiscoveryInfo onError for {}", lookupKey);
                             discoveryInfoBehaviorSubject.toSerialized().onError(t);

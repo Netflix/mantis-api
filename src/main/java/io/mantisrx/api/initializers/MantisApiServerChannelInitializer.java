@@ -25,7 +25,7 @@ import io.mantisrx.api.push.MantisSSEHandler;
 import io.mantisrx.api.push.MantisWebSocketFrameHandler;
 import io.mantisrx.api.tunnel.CrossRegionHandler;
 import io.mantisrx.api.tunnel.MantisCrossRegionalClient;
-import io.mantisrx.api.util.Util;
+import io.mantisrx.api.Util;
 import io.mantisrx.client.MantisClient;
 import io.mantisrx.server.master.client.MasterClientWrapper;
 import io.netty.channel.Channel;
@@ -33,7 +33,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.group.ChannelGroup;
-import io.netty.handler.codec.PrematureChannelClosureException;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.ssl.SslContext;
@@ -114,7 +113,6 @@ public class MantisApiServerChannelInitializer extends BaseZuulChannelInitialize
         addPassportHandler(pipeline);
         addTcpRelatedHandlers(pipeline);
 
-        // TODO: If these three are the only ones I can add them in the previous pipeline.
         if (sslEnabled) {
             SslHandler sslHandler = sslContext.newHandler(ch.alloc());
             sslHandler.engine().setEnabledProtocols(sslContextFactory.getProtocols());
@@ -126,16 +124,12 @@ public class MantisApiServerChannelInitializer extends BaseZuulChannelInitialize
         addHttp1Handlers(pipeline);
         addHttpRelatedHandlers(pipeline);
 
-        // TODO: A lot of duplication from MantisApiServerChannelInitializer here. This allows us to iterate quickly,
-        //       but we will bring it into the fold eventually.
         pipeline.addLast("mantishandler", new MantisChannelHandler(pushPrefixes));
     }
 
     /**
      * Adds a series of handlers for providing SSE/Websocket connections
      * to Mantis Jobs.
-     *
-     * TODO: Most of these can be created once and reused except WebSocketServerProtocolHandler.
      *
      * @param pipeline The netty pipeline to which push handlers should be added.
      * @param url The url with which to initiate the websocket handler.

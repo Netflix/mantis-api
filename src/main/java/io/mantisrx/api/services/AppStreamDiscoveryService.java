@@ -15,6 +15,7 @@
  */
 package io.mantisrx.api.services;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.netflix.config.DynamicStringProperty;
@@ -22,7 +23,6 @@ import com.netflix.mantis.discovery.proto.AppJobClustersMap;
 import com.netflix.spectator.api.Counter;
 import com.netflix.zuul.netty.SpectatorUtils;
 import io.mantisrx.api.proto.AppDiscoveryMap;
-import io.mantisrx.api.util.JacksonObjectMapper;
 import io.mantisrx.client.MantisClient;
 import io.mantisrx.server.core.JobSchedulingInfo;
 import io.vavr.control.Either;
@@ -44,6 +44,8 @@ public class AppStreamDiscoveryService {
 
     private final MantisClient mantisClient;
     private final Scheduler scheduler;
+    private final ObjectMapper objectMapper;
+
     private final Counter appJobClusterMappingNullCount;
     private final Counter appJobClusterMappingRequestCount;
     private final Counter appJobClusterMappingFailCount;
@@ -51,9 +53,13 @@ public class AppStreamDiscoveryService {
     private final DynamicStringProperty appJobClustersProp = new DynamicStringProperty("mreAppJobClusterMap", "");
 
     @Inject
-    public AppStreamDiscoveryService(MantisClient mantisClient, @Named("io-scheduler") Scheduler scheduler) {
+    public AppStreamDiscoveryService(MantisClient mantisClient,
+                                     @Named("io-scheduler") Scheduler scheduler,
+                                     ObjectMapper objectMapper) {
         this.mantisClient = mantisClient;
         this.scheduler = scheduler;
+        this.objectMapper = objectMapper;
+
         this.appJobClusterMappingNullCount = SpectatorUtils.newCounter("appJobClusterMappingNull", "mantisapi");
         this.appJobClusterMappingRequestCount = SpectatorUtils.newCounter("appJobClusterMappingRequest", "mantisapi", "app", "unknown");
         this.appJobClusterMappingFailCount = SpectatorUtils.newCounter("appJobClusterMappingFail", "mantisapi");
@@ -65,7 +71,7 @@ public class AppStreamDiscoveryService {
     private void updateAppJobClustersMapping(String appJobClusterStr) {
         if (appJobClusterStr != null) {
             try {
-                AppJobClustersMap appJobClustersMap = JacksonObjectMapper.getInstance()
+                AppJobClustersMap appJobClustersMap = objectMapper
                         .readValue(appJobClusterStr, AppJobClustersMap.class);
                 log.info("appJobClustersMap updated to {}", appJobClustersMap);
                 appJobClusterMappings.set(appJobClustersMap);
@@ -131,7 +137,6 @@ public class AppStreamDiscoveryService {
         return appJobClusters;
     }
 
-    // TODO: Does this block?
     private Option<JobSchedulingInfo> getJobDiscoveryInfo(String jobCluster) {
         JobDiscoveryService jdim = JobDiscoveryService.getInstance(mantisClient, scheduler);
         return jdim
@@ -142,6 +147,8 @@ public class AppStreamDiscoveryService {
                 .doOnError((t) -> {
                     log.warn("Timed out looking up job discovery info for cluster: " + jobCluster + ".");
                 })
+                .subscribeOn(scheduler)
+                .observeOn(scheduler)
                 .toSingle()
                 .toBlocking()
                 .value();

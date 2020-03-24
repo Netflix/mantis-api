@@ -16,6 +16,8 @@
 
 package io.mantisrx.api;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
@@ -38,7 +40,6 @@ import com.netflix.zuul.netty.server.BaseServerStartup;
 import com.netflix.zuul.netty.server.ClientRequestReceiver;
 import com.netflix.zuul.origins.BasicNettyOriginManager;
 import com.netflix.zuul.origins.OriginManager;
-import io.mantisrx.api.push.ConnectionBroker;
 import io.mantisrx.api.services.artifacts.ArtifactManager;
 import io.mantisrx.api.services.artifacts.InMemoryArtifactManager;
 import com.netflix.zuul.stats.BasicRequestMetricsPublisher;
@@ -61,7 +62,6 @@ public class MantisAPIModule extends AbstractModule {
     protected void configure() {
         bind(AbstractConfiguration.class).toInstance(ConfigurationManager.getConfigInstance());
 
-        // sample specific bindings
         bind(BaseServerStartup.class).to(MantisServerStartup.class);
 
         // use provided basic netty origin manager
@@ -83,16 +83,16 @@ public class MantisAPIModule extends AbstractModule {
         bind(AccessLogPublisher.class).toInstance(new AccessLogPublisher("ACCESS",
                 (channel, httpRequest) -> ClientRequestReceiver.getRequestFromChannel(channel).getContext().getUUID()));
 
-
         bind(ArtifactManager.class).to(InMemoryArtifactManager.class);
         bind(MantisCrossRegionalClient.class).to(NoOpCrossRegionalClient.class);
 
-
+        bind(ObjectMapper.class).toInstance(new ObjectMapper()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false));
     }
 
     @Provides
     @Singleton
-    MasterClientWrapper getMasterClientWrapper(AbstractConfiguration configuration) {
+    MasterClientWrapper provideMantisClientWrapper(AbstractConfiguration configuration) {
         Properties props = new Properties();
         configuration.getKeys("mantis").forEachRemaining(key -> {
             props.put(key, configuration.getString(key));
@@ -101,7 +101,7 @@ public class MantisAPIModule extends AbstractModule {
         return new MasterClientWrapper(props);
     }
 
-    @Provides @Singleton MantisClient getMantisClient(AbstractConfiguration configuration) {
+    @Provides @Singleton MantisClient provideMantisClient(AbstractConfiguration configuration) {
         Properties props = new Properties();
         configuration.getKeys("mantis").forEachRemaining(key -> {
             props.put(key, configuration.getString(key));
@@ -112,15 +112,10 @@ public class MantisAPIModule extends AbstractModule {
 
     @Provides
     @Singleton
-    ConnectionBroker getConnectionBroker(MantisClient mantisClient, @Named("io-scheduler") Scheduler scheduler) {
-        return new ConnectionBroker(mantisClient, scheduler);
-    }
-
-    @Provides
-    @Singleton
     @Named("io-scheduler")
-    Scheduler getScheduler(Registry registry) {
-        ThreadPoolExecutor executor = new ThreadPoolExecutor(16, 128, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+    Scheduler provideIoScheduler(Registry registry) {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(16, 128, 60,
+                TimeUnit.SECONDS, new LinkedBlockingQueue<>());
         ThreadPoolMonitor.attach(registry, executor, "io-thread-pool");
         return Schedulers.from(executor);
     }
@@ -128,7 +123,7 @@ public class MantisAPIModule extends AbstractModule {
     @Provides
     @Singleton
     @Named("push-prefixes")
-    List<String> getPushPrefixes() {
+    List<String> providePushPrefixes() {
         List<String> pushPrefixes = new ArrayList<>(10);
         pushPrefixes.add("/jobconnectbyid");
         pushPrefixes.add("/api/v1/jobconnectbyid");

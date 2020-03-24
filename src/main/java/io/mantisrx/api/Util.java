@@ -13,34 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.mantisrx.api.util;
+package io.mantisrx.api;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
-import io.netty.handler.codec.http.QueryStringEncoder;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.slf4j.Logger;
+import rx.Observable;
+import rx.functions.Func1;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
-import static io.mantisrx.api.util.Constants.TagNameValDelimiter;
-import static io.mantisrx.api.util.Constants.TagsParamName;
+import static io.mantisrx.api.Constants.TagNameValDelimiter;
+import static io.mantisrx.api.Constants.TagsParamName;
 
 @UtilityClass
 @Slf4j
 public class Util {
-    public static String getTokenAfter(String path, String suffix) {
-        if (path == null)
-            return "";
-        int i = path.indexOf(suffix + "/");
-        if (i < 0)
-            return "";
-        String split = path.substring(i + suffix.length() + 1);
-        i = split.indexOf('/');
-        return i < 0 ?
-                split :
-                split.substring(0, i);
-    }
-
+    private static final int defaultNumRetries = 5;
 
     public static boolean startsWithAnyOf(final String target, List<String> prefixes) {
         for (String prefix : prefixes) {
@@ -92,5 +84,34 @@ public class Util {
         tags.add(queryStringDecoder.path());
 
         return tags.toArray(new String[]{});
+    }
+
+    //
+    // Retries
+    //
+
+    public static Func1<Observable<? extends Throwable>, Observable<?>> getRetryFunc(final Logger logger, String name) {
+        return getRetryFunc(logger, name, defaultNumRetries);
+    }
+
+    public static Func1<Observable<? extends Throwable>, Observable<?>> getRetryFunc(final Logger logger, String name, final int retries) {
+        final int limit = retries == Integer.MAX_VALUE ? retries : retries + 1;
+        return attempts -> attempts
+                .zipWith(Observable.range(1, limit), (t1, integer) -> {
+                    logger.warn("Caught exception connecting for {}.", name, t1);
+                    return new ImmutablePair<Throwable, Integer>(t1, integer);
+                })
+                .flatMap(pair -> {
+                    Throwable t = pair.left;
+                    int retryIter = pair.right;
+                    long delay = Math.round(Math.pow(2, retryIter));
+
+                    if (retryIter > retries) {
+                        logger.error("Exceeded maximum retries ({}) for {} with exception: {}", retries, name, t.getMessage(), t);
+                        return Observable.error(new Exception("Timeout after " + retries + " retries"));
+                    }
+                    logger.info("Retrying connection to {} after sleeping for {} seconds.", name, delay, t);
+                    return Observable.timer(delay, TimeUnit.SECONDS);
+                });
     }
 }

@@ -1,4 +1,4 @@
-package io.mantisrx.api.util;
+package io.mantisrx.api;
 
 import lombok.experimental.UtilityClass;
 

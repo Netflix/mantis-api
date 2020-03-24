@@ -110,17 +110,18 @@ public class MantisServerStartup extends BaseServerStartup {
         /* These settings may need to be tweaked depending if you're running behind an ELB HTTP listener, TCP listener,
          * or directly on the internet.
          */
-        channelConfig.set(CommonChannelConfigKeys.allowProxyHeadersWhen, StripUntrustedProxyHeadersHandler.AllowWhen.ALWAYS);
+        channelConfig.set(CommonChannelConfigKeys.allowProxyHeadersWhen,
+                StripUntrustedProxyHeadersHandler.AllowWhen.ALWAYS);
         channelConfig.set(CommonChannelConfigKeys.preferProxyProtocolForClientIp, false);
         channelConfig.set(CommonChannelConfigKeys.isSSlFromIntermediary, false);
         channelConfig.set(CommonChannelConfigKeys.withProxyProtocol, false);
 
-
-
         addrsToChannels.put(
                 sockAddr,
                 new MantisApiServerChannelInitializer(
-                        String.valueOf(port), channelConfig, channelDependencies, clientChannels, pushPrefixes, mantisClient, masterClientWrapper, mantisCrossRegionalClient, connectionBroker, scheduler, false));
+                        String.valueOf(port), channelConfig, channelDependencies, clientChannels, pushPrefixes,
+                        mantisClient, masterClientWrapper, mantisCrossRegionalClient, connectionBroker,
+                        scheduler, false));
         logAddrConfigured(sockAddr);
 
         return Collections.unmodifiableMap(addrsToChannels);

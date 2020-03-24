@@ -15,6 +15,7 @@
  */
 package io.mantisrx.api.filters;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.netflix.mantis.discovery.proto.AppJobClustersMap;
 import com.netflix.zuul.filters.http.HttpSyncEndpoint;
@@ -23,7 +24,6 @@ import com.netflix.zuul.message.http.HttpRequestMessage;
 import com.netflix.zuul.message.http.HttpResponseMessage;
 import com.netflix.zuul.message.http.HttpResponseMessageImpl;
 import io.mantisrx.api.services.AppStreamDiscoveryService;
-import io.mantisrx.api.util.JacksonObjectMapper;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.vavr.control.Try;
 
@@ -32,12 +32,16 @@ import java.util.List;
 public class MREAppStreamToJobClusterMapping extends HttpSyncEndpoint {
 
     private final AppStreamDiscoveryService appStreamDiscoveryService;
+    private final ObjectMapper objectMapper;
+
     private static final String APPNAME_QUERY_PARAM = "app";
     public static final String PATH_SPEC = "/api/v1/mantis/publish/streamJobClusterMap";
 
     @Inject
-    public MREAppStreamToJobClusterMapping(AppStreamDiscoveryService appStreamDiscoveryService) {
+    public MREAppStreamToJobClusterMapping(AppStreamDiscoveryService appStreamDiscoveryService,
+                                           ObjectMapper objectMapper) {
         this.appStreamDiscoveryService = appStreamDiscoveryService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -45,7 +49,7 @@ public class MREAppStreamToJobClusterMapping extends HttpSyncEndpoint {
         List<String> apps = request.getQueryParams().get(APPNAME_QUERY_PARAM);
         AppJobClustersMap payload = appStreamDiscoveryService.getAppJobClustersMap(apps);
 
-        Try<String> serialized = Try.of(() -> JacksonObjectMapper.getInstance().writeValueAsString(payload));
+        Try<String> serialized = Try.of(() -> objectMapper.writeValueAsString(payload));
 
         return serialized.map(body -> {
             HttpResponseMessage resp = new HttpResponseMessageImpl(request.getContext(), request, 200);

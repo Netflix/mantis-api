@@ -16,12 +16,10 @@
 
 package io.mantisrx.api.tunnel;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.spectator.api.Counter;
 import com.netflix.zuul.netty.SpectatorUtils;
-import io.mantisrx.api.util.Constants;
-import io.mantisrx.api.util.RetryUtils;
-import io.mantisrx.api.util.Util;
+import io.mantisrx.api.Constants;
+import io.mantisrx.api.Util;
 import io.mantisrx.common.MantisServerSentEvent;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -50,8 +48,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.mantisrx.api.util.Constants.*;
-import static io.mantisrx.api.util.Util.getLocalRegion;
+import static io.mantisrx.api.Constants.*;
+import static io.mantisrx.api.Util.getLocalRegion;
 
 @Slf4j
 public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
@@ -69,8 +67,6 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private final MantisCrossRegionalClient mantisCrossRegionalClient;
     private final Scheduler scheduler;
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-
     private Subscription subscription = null;
 
     public CrossRegionHandler(
@@ -85,7 +81,6 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
 
-        // What cases do we need to handle?
         if (HttpUtil.is100ContinueExpected(request)) {
             send100Contine(ctx);
         }
@@ -99,6 +94,8 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                 handleRestGet(ctx, request);
             } else if(request.method() == HttpMethod.POST) {
                 handleRestPost(ctx, request);
+            } else {
+                ctx.fireChannelRead(request);
             }
         }
     }
@@ -162,7 +159,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                                     throw new RuntimeException(t);
                                 return data;
                             })
-                            .retryWhen(RetryUtils.getRetryFunc(log, uri + " in " + region))
+                            .retryWhen(Util.getRetryFunc(log, uri + " in " + region))
                             .take(1)
                             .onErrorReturn(t -> new RegionData(region, false, t.getMessage(), 0));
                 })
@@ -213,7 +210,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                                     throw new RuntimeException(t);
                                 return data;
                             })
-                            .retryWhen(RetryUtils.getRetryFunc(log, uri + " in " + region))
+                            .retryWhen(Util.getRetryFunc(log, uri + " in " + region))
                             .take(1)
                             .onErrorReturn(t -> new RegionData(region, false, t.getMessage(), 0));
                 })
@@ -259,7 +256,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                     log.info("Connecting to remote region {} at {}.", region, uri);
                     return mantisCrossRegionalClient.getSecureSseClient(region)
                             .submit(HttpClientRequest.createGet(uri))
-                            .retryWhen(RetryUtils.getRetryFunc(log, uri + " in " + region))
+                            .retryWhen(Util.getRetryFunc(log, uri + " in " + region))
                             .doOnError(throwable -> log.warn(
                                     "Error getting response from remote SSE server for uri {} in region {}: {}",
                                     uri, region, throwable.getMessage(), throwable)
@@ -312,9 +309,9 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private Observable<MantisServerSentEvent> streamContent(HttpClientResponse<ServerSentEvent> response, String
             region, String uri, boolean passThruTunnelPings) {
 
-        Counter numRemoteBytes = SpectatorUtils.newCounter(numRemoteBytesCounterName, "", "region", region);
-        Counter numRemoteMessages = SpectatorUtils.newCounter(numRemoteMessagesCounterName, "", "region", region);
-        Counter numSseErrors = SpectatorUtils.newCounter(numSseErrorsCounterName, "", "region", region);
+        Counter numRemoteBytes = SpectatorUtils.newCounter(numRemoteBytesCounterName, "NONE", "region", region);
+        Counter numRemoteMessages = SpectatorUtils.newCounter(numRemoteMessagesCounterName, "NONE", "region", region);
+        Counter numSseErrors = SpectatorUtils.newCounter(numSseErrorsCounterName, "NONE", "region", region);
 
         return response.getContent()
                 .doOnError(t -> log.warn(t.getMessage()))
@@ -387,7 +384,6 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
         return queryStringEncoder.toString();
     }
 
-    // TODO: Duplicate with MantisSSEHandler
     private static void send100Contine(ChannelHandlerContext ctx) {
         FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
                 HttpResponseStatus.CONTINUE);

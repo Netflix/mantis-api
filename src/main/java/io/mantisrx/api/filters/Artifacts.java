@@ -1,5 +1,6 @@
 package io.mantisrx.api.filters;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.netflix.zuul.filters.http.HttpSyncEndpoint;
 import com.netflix.zuul.message.http.HttpHeaderNames;
@@ -8,7 +9,6 @@ import com.netflix.zuul.message.http.HttpResponseMessage;
 import com.netflix.zuul.message.http.HttpResponseMessageImpl;
 import io.mantisrx.api.proto.Artifact;
 import io.mantisrx.api.services.artifacts.ArtifactManager;
-import io.mantisrx.api.util.JacksonObjectMapper;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vavr.control.Try;
@@ -22,6 +22,7 @@ import java.util.Optional;
 public class Artifacts extends HttpSyncEndpoint {
 
     private final ArtifactManager artifactManager;
+    private final ObjectMapper objectMapper;
     public static final String PATH_SPEC = "/api/v1/artifacts";
 
     @Override
@@ -30,8 +31,9 @@ public class Artifacts extends HttpSyncEndpoint {
     }
 
     @Inject
-    public Artifacts(ArtifactManager artifactManager) {
+    public Artifacts(ArtifactManager artifactManager, ObjectMapper objectMapper) {
         this.artifactManager = artifactManager;
+        this.objectMapper = objectMapper;
         artifactManager.putArtifact(new Artifact("mantis.json", 0, new byte[0]));
         artifactManager.putArtifact(new Artifact("mantis.zip", 0, new byte[0]));
     }
@@ -45,7 +47,7 @@ public class Artifacts extends HttpSyncEndpoint {
             if (Strings.isNullOrEmpty(fileName)) {
                 List<String> files = artifactManager
                         .getArtifacts();
-                Try<String> serialized = Try.of(() -> JacksonObjectMapper.getInstance().writeValueAsString(files));
+                Try<String> serialized = Try.of(() -> objectMapper.writeValueAsString(files));
 
                 return serialized.map(body -> {
                     HttpResponseMessage response = new HttpResponseMessageImpl(request.getContext(), request, 200);

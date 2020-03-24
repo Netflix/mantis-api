@@ -15,6 +15,7 @@
  */
 package io.mantisrx.api.filters;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.netflix.zuul.filters.http.HttpSyncEndpoint;
 import com.netflix.zuul.message.http.HttpHeaderNames;
@@ -23,7 +24,6 @@ import com.netflix.zuul.message.http.HttpResponseMessage;
 import com.netflix.zuul.message.http.HttpResponseMessageImpl;
 import io.mantisrx.api.proto.AppDiscoveryMap;
 import io.mantisrx.api.services.AppStreamDiscoveryService;
-import io.mantisrx.api.util.JacksonObjectMapper;
 import com.netflix.zuul.stats.status.StatusCategoryUtils;
 import com.netflix.zuul.stats.status.ZuulStatusCategory;
 import io.netty.handler.codec.http.HttpHeaderValues;
@@ -38,11 +38,14 @@ import java.util.function.Function;
 public class AppStreamDiscovery extends HttpSyncEndpoint {
 
     private final AppStreamDiscoveryService appStreamDiscoveryService;
+    private final ObjectMapper objectMapper;
     private static final String APPNAME_QUERY_PARAM = "app";
 
     @Inject
-    public AppStreamDiscovery(AppStreamDiscoveryService appStreamDiscoveryService) {
+    public AppStreamDiscovery(AppStreamDiscoveryService appStreamDiscoveryService,
+                              ObjectMapper objectMapper) {
         this.appStreamDiscoveryService = appStreamDiscoveryService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -58,7 +61,7 @@ public class AppStreamDiscovery extends HttpSyncEndpoint {
             return resp;
         }, appDiscoveryMap -> {
 
-            Try<String> serialized = Try.of(() -> JacksonObjectMapper.getInstance().writeValueAsString(appDiscoveryMap));
+            Try<String> serialized = Try.of(() -> objectMapper.writeValueAsString(appDiscoveryMap));
 
             if (serialized.isSuccess()) {
                 StatusCategoryUtils.setStatusCategory(request.getContext(), ZuulStatusCategory.SUCCESS);
