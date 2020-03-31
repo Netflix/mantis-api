@@ -10,10 +10,12 @@ import io.mantisrx.client.SinkConnectionFunc;
 import io.mantisrx.client.SseSinkConnectionFunction;
 import io.mantisrx.common.MantisServerSentEvent;
 import io.mantisrx.runtime.parameter.SinkParameters;
+import io.mantisrx.server.core.JobSchedulingInfo;
 import io.vavr.control.Try;
 import lombok.extern.slf4j.Slf4j;
 import rx.Observable;
 import rx.Scheduler;
+import rx.Subscriber;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -77,12 +79,7 @@ public class ConnectionBroker {
                                     .share());
                     break;
 
-                    // TODO: The three connections below are not currently being cached because they are cold then hot. Just need to work out a pattern for it.
                 case JOB_STATUS:
-                    return mantisClient
-                            .getJobStatusObservable(details.target)
-                            .subscribeOn(scheduler);
-                    /*
                     connectionCache.put(details,
                             mantisClient
                                     .getJobStatusObservable(details.target)
@@ -95,18 +92,31 @@ public class ConnectionBroker {
                                         log.info("Purging {} from cache.", details);
                                         connectionCache.remove(details);
                                     })
-                                    .share());
+                                    .replay(25)
+                                    .autoConnect());
                     break;
-                     */
                 case JOB_SCHEDULING_INFO:
-                    return mantisClient.getSchedulingChanges(details.target)
-                            .subscribeOn(scheduler)
-                            .map(changes -> Try.of(() -> objectMapper.writeValueAsString(changes)).getOrElse("Error"));
-                    /*
                     connectionCache.put(details,
                             mantisClient.getSchedulingChanges(details.target)
                                     .subscribeOn(scheduler)
-                                    .map(changes -> Try.of(() -> JacksonObjectMapper.getInstance().writeValueAsString(changes)).getOrElse("Error"))
+                                    .map(changes -> Try.of(() -> objectMapper.writeValueAsString(changes)).getOrElse("Error"))
+                                    .doOnCompleted(() -> {
+                                        log.info("Purging {} from cache.", details);
+                                        connectionCache.remove(details);
+                                    })
+                                    .doOnUnsubscribe(() -> {
+                                        log.info("Purging {} from cache.", details);
+                                        connectionCache.remove(details);
+                                    })
+                            .replay(1)
+                            .autoConnect());
+                    break;
+
+                case JOB_CLUSTER_DISCOVERY:
+                    connectionCache.put(details,
+                            jobDiscoveryService.jobDiscoveryInfoStream(jobDiscoveryService.key(JobDiscoveryService.LookupType.JOB_CLUSTER, details.target))
+                                    .subscribeOn(scheduler)
+                                    .map(jdi ->Try.of(() -> objectMapper.writeValueAsString(jdi)).getOrElse("Error"))
                                     .doOnCompleted(() -> {
                                         log.info("Purging {} from cache.", details);
                                         connectionCache.remove(details);
@@ -116,30 +126,8 @@ public class ConnectionBroker {
                                         connectionCache.remove(details);
                                     })
                                     .replay(1)
-                                    .share());
+                                    .autoConnect());
                     break;
-                     */
-
-                case JOB_CLUSTER_DISCOVERY:
-                    return jobDiscoveryService.jobDiscoveryInfoStream(jobDiscoveryService.key(JobDiscoveryService.LookupType.JOB_CLUSTER, details.target))
-                            .subscribeOn(scheduler)
-                            .map(jdi ->Try.of(() -> objectMapper.writeValueAsString(jdi)).getOrElse("Error"));
-                    /*
-                    connectionCache.put(details,
-                            jobDiscoveryService.jobDiscoveryInfoStream(jobDiscoveryService.key(JobDiscoveryService.LookupType.JOB_CLUSTER, details.target))
-                                    .subscribeOn(scheduler)
-                                    .map(jdi ->Try.of(() -> JacksonObjectMapper.getInstance().writeValueAsString(jdi)).getOrElse("Error"))
-                                    .doOnCompleted(() -> {
-                                        log.info("Purging {} from cache.", details);
-                                        connectionCache.remove(details);
-                                    })
-                                    .doOnUnsubscribe(() -> {
-                                        log.info("Purging {} from cache.", details);
-                                        connectionCache.remove(details);
-                                    })
-                                    .share());
-                    break;
-                     */
             }
             log.info("Caching connection for: {}", details);
         }
