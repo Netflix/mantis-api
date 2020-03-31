@@ -19,4 +19,11 @@ public class Constants {
     public static final String OriginRegionTagName = "originRegion";
     public static final String TagsParamName = "MantisApiTag";
     public static final String TagNameValDelimiter = ":";
+
+    public static final String metaErrorMsgHeader = "mantis.meta.error.message";
+    public static final String metaOriginName = "mantis.meta.origin";
+
+    public static final String numRemoteBytesCounterName = "numRemoteSinkBytes";
+    public static final String numRemoteMessagesCounterName = "numRemoteMessages";
+    public static final String numSseErrorsCounterName = "numSseErrors";
 }

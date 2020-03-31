@@ -151,7 +151,7 @@ public class MantisApiServerChannelInitializer extends BaseZuulChannelInitialize
     protected void addRegionalHandlers(final ChannelPipeline pipeline) {
         pipeline.addLast(new ChunkedWriteHandler());
         pipeline.addLast(new HttpObjectAggregator(10 * 1024 * 1024));
-        pipeline.addLast(new CrossRegionHandler(pushPrefixes, mantisCrossRegionalClient, scheduler));
+        pipeline.addLast(new CrossRegionHandler(pushPrefixes, mantisCrossRegionalClient, connectionBroker, scheduler));
     }
 
     /**

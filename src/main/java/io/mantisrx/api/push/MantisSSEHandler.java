@@ -11,6 +11,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
+import io.vavr.control.Option;
 import lombok.extern.slf4j.Slf4j;
 import mantis.io.reactivex.netty.RxNetty;
 import mantis.io.reactivex.netty.channel.StringTransformer;
@@ -54,8 +55,6 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
                 send100Contine(ctx);
             }
 
-
-
             HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1,
                     HttpResponseStatus.OK);
             HttpHeaders headers = response.headers();
@@ -71,17 +70,17 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
             final String uri = request.uri();
             final PushConnectionDetails pcd =
                     isSubmitAndConnect(request)
-                            ? new PushConnectionDetails(uri, jobSubmit(request), PushConnectionDetails.TARGET_TYPE.CONNECT_BY_ID)
+                            ? new PushConnectionDetails(uri, jobSubmit(request), PushConnectionDetails.TARGET_TYPE.CONNECT_BY_ID, io.vavr.collection.List.empty())
                             : PushConnectionDetails.from(uri);
             log.info("SSE Connecting for: {}", pcd);
 
             boolean tunnelPingsEnabled = isTunnelPingsEnabled(uri);
 
-            final String[] tags = Util.getTaglist(uri, "NONE"); // TODO: Attach an ID to streaming calls via Zuul. This will help access log too.
-            Counter numDroppedBytesCounter = SpectatorUtils.newCounter(Constants.numDroppedBytesCounterName, "NONE", tags);
-            Counter numDroppedMessagesCounter = SpectatorUtils.newCounter(Constants.numDroppedMessagesCounterName, "NONE", tags);
-            Counter numMessagesCounter = SpectatorUtils.newCounter(Constants.numMessagesCounterName, "NONE", tags);
-            Counter numBytesCounter = SpectatorUtils.newCounter(Constants.numBytesCounterName, "NONE", tags);
+            final String[] tags = Util.getTaglist(uri, pcd.target);
+            Counter numDroppedBytesCounter = SpectatorUtils.newCounter(Constants.numDroppedBytesCounterName, pcd.target, tags);
+            Counter numDroppedMessagesCounter = SpectatorUtils.newCounter(Constants.numDroppedMessagesCounterName, pcd.target, tags);
+            Counter numMessagesCounter = SpectatorUtils.newCounter(Constants.numMessagesCounterName, pcd.target, tags);
+            Counter numBytesCounter = SpectatorUtils.newCounter(Constants.numBytesCounterName, pcd.target, tags);
 
             this.subscription = this.connectionBroker.connect(pcd)
                     .mergeWith(tunnelPingsEnabled

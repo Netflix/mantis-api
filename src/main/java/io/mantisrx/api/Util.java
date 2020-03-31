@@ -15,6 +15,7 @@
  */
 package io.mantisrx.api;
 
+import com.google.common.base.Strings;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +57,10 @@ public class Util {
     //
 
     public static String[] getTaglist(String uri, String id) {
+        return getTaglist(uri, id, null);
+    }
+
+    public static String[] getTaglist(String uri, String id, String region) {
         QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri);
         Map<String, List<String>> queryParameters = queryStringDecoder.parameters();
 
@@ -82,6 +87,11 @@ public class Util {
 
         tags.add("urlPath");
         tags.add(queryStringDecoder.path());
+
+        if (!Strings.isNullOrEmpty(region)) {
+            tags.add("region");
+            tags.add(region);
+        }
 
         return tags.toArray(new String[]{});
     }

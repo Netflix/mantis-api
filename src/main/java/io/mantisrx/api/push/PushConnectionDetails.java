@@ -3,6 +3,7 @@ package io.mantisrx.api.push;
 import io.mantisrx.runtime.parameter.SinkParameter;
 import io.mantisrx.runtime.parameter.SinkParameters;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.vavr.collection.List;
 import io.vavr.control.Try;
 import lombok.Value;
 
@@ -21,28 +22,12 @@ public @Value class PushConnectionDetails {
     private final String uri;
     public final String target;
     public final TARGET_TYPE type;
+    public final List<String> regions;
 
-    public SinkParameters getSinkparameters() {
-        SinkParameters.Builder builder = new SinkParameters.Builder();
-        QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri);
-
-        builder.parameters(queryStringDecoder
-                .parameters()
-                .entrySet()
-                .stream()
-                .flatMap(entry -> entry.getValue()
-                        .stream()
-                        .map(val -> Try.of(() -> new SinkParameter(entry.getKey(), val)))
-                        .filter(Try::isSuccess)
-                        .map(Try::get))
-                .collect(Collectors.toList())
-                .toArray(new SinkParameter[] {}));
-
-        return builder.build();
-    }
 
     /**
      * Determines the connection type for a given push connection.
+     *
      * @param uri Request URI as returned by Netty's requestUri() methods. Expects leading slash.
      * @return The CONNECTION_TYPE requested by the URI.
      */
@@ -64,17 +49,53 @@ public @Value class PushConnectionDetails {
 
     /**
      * Determines the target for a push connection request. Typically a job name or id.
+     *
      * @param uri Request URI as returned by Netty's requestUri() methods. Expects leading slash.
      * @return The target requested by the URI.
      */
     public static String determineTarget(final String uri) {
 
-        String sanitized =  uri.replaceFirst("^/(api/v1/)?(jobconnectbyid|jobconnectbyname|jobstatus|jobs/schedulingInfo|jobClusters/discoveryInfoStream)/", "");
+        String sanitized = uri.replaceFirst("^/(api/v1/)?(jobconnectbyid|jobconnectbyname|jobstatus|jobs/schedulingInfo|jobClusters/discoveryInfoStream)/", "");
         QueryStringDecoder queryStringDecoder = new QueryStringDecoder(sanitized);
         return queryStringDecoder.path();
     }
 
+    //
+    // Computed Properties
+    //
+
+    public SinkParameters getSinkparameters() {
+        SinkParameters.Builder builder = new SinkParameters.Builder();
+        QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri);
+
+        builder.parameters(queryStringDecoder
+                .parameters()
+                .entrySet()
+                .stream()
+                .flatMap(entry -> entry.getValue()
+                        .stream()
+                        .map(val -> Try.of(() -> new SinkParameter(entry.getKey(), val)))
+                        .filter(Try::isSuccess)
+                        .map(Try::get))
+                .collect(Collectors.toList())
+                .toArray(new SinkParameter[]{}));
+
+        return builder.build();
+    }
+
+    //
+    // Static Factories
+    //
+
     public static PushConnectionDetails from(String uri) {
-        return new PushConnectionDetails(uri, determineTarget(uri), determineTargetType(uri));
+        return from(uri, List.empty());
+    }
+
+    public static PushConnectionDetails from(String uri, List<String> regions) {
+        return new PushConnectionDetails(uri, determineTarget(uri), determineTargetType(uri), regions);
+    }
+
+    public static PushConnectionDetails from(String uri, java.util.List<String> regions) {
+        return new PushConnectionDetails(uri, determineTarget(uri), determineTargetType(uri), List.ofAll(regions));
     }
 }
