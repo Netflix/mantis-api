@@ -238,9 +238,8 @@ public class ConnectionBroker {
                 .doOnError(t -> log.warn(t.getMessage()))
                 .timeout(3 * Constants.TunnelPingIntervalSecs, TimeUnit.SECONDS)
                 .doOnError(t -> log.warn("Timeout getting data from remote {} connection for {}", region, uri))
-                .filter(sse -> sse.hasEventType()
-                        || sse.getEventTypeAsString().startsWith("error:")
-                        || TunnelPingMessage.equals(sse.contentAsString()))
+                .filter(sse -> !(!sse.hasEventType() || !sse.getEventTypeAsString().startsWith("error:")) ||
+                        !TunnelPingMessage.equals(sse.contentAsString()))
                 .map(t1 -> {
                     String data = "";
                     if (t1.hasEventType() && t1.getEventTypeAsString().startsWith("error:")) {
