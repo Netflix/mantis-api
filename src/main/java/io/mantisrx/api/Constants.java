@@ -26,4 +26,6 @@ public class Constants {
     public static final String numRemoteBytesCounterName = "numRemoteSinkBytes";
     public static final String numRemoteMessagesCounterName = "numRemoteMessages";
     public static final String numSseErrorsCounterName = "numSseErrors";
+
+    public static final String DUMMY_TIMER_DATA = "DUMMY_TIMER_DATA";
 }

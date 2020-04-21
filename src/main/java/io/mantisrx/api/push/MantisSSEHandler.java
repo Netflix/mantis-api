@@ -1,5 +1,6 @@
 package io.mantisrx.api.push;
 
+import com.netflix.config.DynamicIntProperty;
 import com.netflix.spectator.api.Counter;
 import com.netflix.zuul.netty.SpectatorUtils;
 import io.mantisrx.api.Constants;
@@ -26,6 +27,8 @@ import rx.Subscription;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -38,6 +41,7 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
     private final MasterClientWrapper masterClientWrapper;
     private final List<String> pushPrefixes;
     private Subscription subscription;
+    private final DynamicIntProperty queueCapacity = new DynamicIntProperty("io.mantisrx.api.push.queueCapacity", 1000);
 
     public MantisSSEHandler(ConnectionBroker connectionBroker, MasterClientWrapper masterClientWrapper,
                             List<String> pushPrefixes) {
@@ -83,24 +87,42 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
             Counter numMessagesCounter = SpectatorUtils.newCounter(Constants.numMessagesCounterName, pcd.target, tags);
             Counter numBytesCounter = SpectatorUtils.newCounter(Constants.numBytesCounterName, pcd.target, tags);
 
+            BlockingQueue<String> queue = new LinkedBlockingQueue<String>(queueCapacity.get());
+
             this.subscription = this.connectionBroker.connect(pcd)
                     .mergeWith(tunnelPingsEnabled
                             ? Observable.interval(Constants.TunnelPingIntervalSecs, Constants.TunnelPingIntervalSecs,
                             TimeUnit.SECONDS)
                             .map(l -> Constants.TunnelPingMessage)
                             : Observable.empty())
+                    .mergeWith(Observable.interval(50, TimeUnit.MILLISECONDS)
+                                .map(__ -> Constants.DUMMY_TIMER_DATA))
                     .doOnNext(event -> {
-                        String data = Constants.SSE_DATA_PREFIX + event + Constants.SSE_DATA_SUFFIX;
+                        if (!Constants.DUMMY_TIMER_DATA.equals(event)) {
+                          String data = Constants.SSE_DATA_PREFIX + event + Constants.SSE_DATA_SUFFIX;
+                          if (!queue.offer(data)) {
+                              numDroppedBytesCounter.increment(data.length());
+                              numDroppedMessagesCounter.increment();
+                          }
+                        }
+                    })
+                    .filter(Constants.DUMMY_TIMER_DATA::equals)
+                    .doOnNext(__ -> {
                         if (ctx.channel().isWritable()) {
-                            ctx.writeAndFlush(Unpooled.copiedBuffer(data, StandardCharsets.UTF_8));
-                            numMessagesCounter.increment();
-                            numBytesCounter.increment(data.length());
-                        } else {
-                            numDroppedBytesCounter.increment(data.length());
-                            numDroppedMessagesCounter.increment();
+                            final List<String> items = new ArrayList<>(queue.size());
+                            queue.drainTo(items);
+                            for (String data : items) {
+                              ctx.writeAndFlush(Unpooled.copiedBuffer(data, StandardCharsets.UTF_8));
+                              numMessagesCounter.increment();
+                              numBytesCounter.increment(data.length());
+                            }
                         }
                     })
                     .subscribe();
+
+
+                    /*
+                     */
 
         } else {
             ctx.fireChannelRead(request.retain());
