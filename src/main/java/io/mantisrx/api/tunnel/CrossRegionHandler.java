@@ -65,6 +65,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
             MantisCrossRegionalClient mantisCrossRegionalClient,
             ConnectionBroker connectionBroker,
             Scheduler scheduler) {
+        super(true);
         this.pushPrefixes = pushPrefixes;
         this.mantisCrossRegionalClient = mantisCrossRegionalClient;
         this.connectionBroker = connectionBroker;
@@ -88,7 +89,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
             } else if(request.method() == HttpMethod.POST) {
                 handleRestPost(ctx, request);
             } else {
-                ctx.fireChannelRead(request);
+                ctx.fireChannelRead(request.retain());
             }
         }
     }

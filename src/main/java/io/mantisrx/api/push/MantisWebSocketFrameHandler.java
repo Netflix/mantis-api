@@ -8,6 +8,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
+import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 import rx.Subscription;
 
@@ -17,6 +18,7 @@ public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<Tex
     private Subscription subscription;
 
     public MantisWebSocketFrameHandler(ConnectionBroker broker) {
+        super(true);
         this.connectionBroker = broker;
     }
 
@@ -53,6 +55,7 @@ public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<Tex
             .subscribe();
 
         } else {
+            ReferenceCountUtil.retain(evt);
             super.userEventTriggered(ctx, evt);
         }
     }
