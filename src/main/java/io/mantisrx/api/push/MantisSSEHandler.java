@@ -41,6 +41,7 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
 
     public MantisSSEHandler(ConnectionBroker connectionBroker, MasterClientWrapper masterClientWrapper,
                             List<String> pushPrefixes) {
+        super(true);
         this.connectionBroker = connectionBroker;
         this.masterClientWrapper = masterClientWrapper;
         this.pushPrefixes = pushPrefixes;
@@ -133,6 +134,9 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        if (this.subscription != null && !this.subscription.isUnsubscribed()) {
+            this.subscription.unsubscribe();
+        }
         cause.printStackTrace();
         ctx.close();
     }
