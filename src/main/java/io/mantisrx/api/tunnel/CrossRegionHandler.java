@@ -16,8 +16,34 @@
 
 package io.mantisrx.api.tunnel;
 
+import static io.mantisrx.api.Constants.OriginRegionTagName;
+import static io.mantisrx.api.Constants.SSE_DATA_PREFIX;
+import static io.mantisrx.api.Constants.SSE_DATA_SUFFIX;
+import static io.mantisrx.api.Constants.TagNameValDelimiter;
+import static io.mantisrx.api.Constants.TagsParamName;
+import static io.mantisrx.api.Constants.TunnelPingMessage;
+import static io.mantisrx.api.Constants.TunnelPingParamName;
+import static io.mantisrx.api.Util.getLocalRegion;
+
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import com.netflix.config.DynamicIntProperty;
 import com.netflix.spectator.api.Counter;
 import com.netflix.zuul.netty.SpectatorUtils;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import io.mantisrx.api.Constants;
 import io.mantisrx.api.Util;
 import io.mantisrx.api.push.ConnectionBroker;
@@ -26,29 +52,29 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.DefaultHttpHeaders;
+import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpUtil;
+import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.QueryStringEncoder;
 import lombok.extern.slf4j.Slf4j;
 import mantis.io.reactivex.netty.channel.StringTransformer;
 import mantis.io.reactivex.netty.protocol.http.client.HttpClient;
 import mantis.io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import mantis.io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 import rx.Observable;
 import rx.Scheduler;
 import rx.Subscription;
-
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static io.mantisrx.api.Constants.*;
-import static io.mantisrx.api.Util.getLocalRegion;
 
 @Slf4j
 public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
@@ -59,6 +85,8 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private final Scheduler scheduler;
 
     private Subscription subscription = null;
+    private final DynamicIntProperty queueCapacity = new DynamicIntProperty("io.mantisrx.api.push.queueCapacity", 1000);
+    private final DynamicIntProperty writeIntervalMillis = new DynamicIntProperty("io.mantisrx.api.push.writeIntervalMillis", 50);
 
     public CrossRegionHandler(
             List<String> pushPrefixes,
@@ -247,19 +275,34 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
         Counter numMessagesCounter = SpectatorUtils.newCounter(Constants.numMessagesCounterName, pcd.target, tags);
         Counter numBytesCounter = SpectatorUtils.newCounter(Constants.numBytesCounterName, pcd.target, tags);
 
+        BlockingQueue<String> queue = new LinkedBlockingQueue<String>(queueCapacity.get());
+
         subscription = connectionBroker.connect(pcd)
                 .filter(event -> !event.equalsIgnoreCase(TunnelPingMessage) || sendThroughTunnelPings)
-                .subscribe(result -> {
-                    String data = SSE_DATA_PREFIX + result + SSE_DATA_SUFFIX;
-                    if (ctx.channel().isWritable()) {
-                        ctx.writeAndFlush(Unpooled.copiedBuffer(data, StandardCharsets.UTF_8));
-                        numMessagesCounter.increment();
-                        numBytesCounter.increment(data.length());
-                    } else {
-                        numDroppedBytesCounter.increment(data.length());
-                        numDroppedMessagesCounter.increment();
+                .mergeWith(Observable.interval(writeIntervalMillis.get(), TimeUnit.MILLISECONDS)
+                              .map(__ -> Constants.DUMMY_TIMER_DATA))
+                .doOnNext(event -> {
+                    if (!Constants.DUMMY_TIMER_DATA.equals(event)) {
+                      String data = Constants.SSE_DATA_PREFIX + event + Constants.SSE_DATA_SUFFIX;
+                      if (!queue.offer(data)) {
+                          numDroppedBytesCounter.increment(data.length());
+                          numDroppedMessagesCounter.increment();
+                      }
                     }
-                });
+                })
+                .filter(Constants.DUMMY_TIMER_DATA::equals)
+                .doOnNext(__ -> {
+                    if (ctx.channel().isWritable()) {
+                        final List<String> items = new ArrayList<>(queue.size());
+                        queue.drainTo(items);
+                        for (String data : items) {
+                          ctx.writeAndFlush(Unpooled.copiedBuffer(data, StandardCharsets.UTF_8));
+                          numMessagesCounter.increment();
+                          numBytesCounter.increment(data.length());
+                        }
+                    }
+                })
+                .subscribe();
     }
 
     @Override
