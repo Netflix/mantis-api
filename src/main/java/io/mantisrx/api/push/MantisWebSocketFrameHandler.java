@@ -25,6 +25,7 @@ public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<Tex
     private final ConnectionBroker connectionBroker;
     private Subscription subscription;
     private final DynamicIntProperty queueCapacity = new DynamicIntProperty("io.mantisrx.api.push.queueCapacity", 1000);
+    private final DynamicIntProperty writeIntervalMillis = new DynamicIntProperty("io.mantisrx.api.push.writeIntervalMillis", 50);
 
     public MantisWebSocketFrameHandler(ConnectionBroker broker) {
         super(true);
@@ -53,7 +54,7 @@ public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<Tex
             BlockingQueue<String> queue = new LinkedBlockingQueue<String>(queueCapacity.get());
 
             this.subscription = this.connectionBroker.connect(pcd)
-                    .mergeWith(Observable.interval(50, TimeUnit.MILLISECONDS)
+                    .mergeWith(Observable.interval(writeIntervalMillis.get(), TimeUnit.MILLISECONDS)
                                  .map(__ -> Constants.DUMMY_TIMER_DATA))
                     .doOnNext(event -> {
                         if (!Constants.DUMMY_TIMER_DATA.equals(event) && !queue.offer(event)) {

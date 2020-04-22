@@ -42,6 +42,7 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
     private final List<String> pushPrefixes;
     private Subscription subscription;
     private final DynamicIntProperty queueCapacity = new DynamicIntProperty("io.mantisrx.api.push.queueCapacity", 1000);
+    private final DynamicIntProperty writeIntervalMillis = new DynamicIntProperty("io.mantisrx.api.push.writeIntervalMillis", 50);
 
     public MantisSSEHandler(ConnectionBroker connectionBroker, MasterClientWrapper masterClientWrapper,
                             List<String> pushPrefixes) {
@@ -95,7 +96,7 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
                             TimeUnit.SECONDS)
                             .map(l -> Constants.TunnelPingMessage)
                             : Observable.empty())
-                    .mergeWith(Observable.interval(50, TimeUnit.MILLISECONDS)
+                    .mergeWith(Observable.interval(writeIntervalMillis.get(), TimeUnit.MILLISECONDS)
                                 .map(__ -> Constants.DUMMY_TIMER_DATA))
                     .doOnNext(event -> {
                         if (!Constants.DUMMY_TIMER_DATA.equals(event)) {
