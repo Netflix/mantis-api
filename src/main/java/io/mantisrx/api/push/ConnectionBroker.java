@@ -15,7 +15,6 @@ import io.mantisrx.client.SinkConnectionFunc;
 import io.mantisrx.client.SseSinkConnectionFunction;
 import io.mantisrx.common.MantisServerSentEvent;
 import io.mantisrx.runtime.parameter.SinkParameters;
-import io.mantisrx.server.core.JobSchedulingInfo;
 import io.vavr.control.Try;
 import lombok.extern.slf4j.Slf4j;
 import mantis.io.reactivex.netty.protocol.http.client.HttpClientRequest;
@@ -23,7 +22,6 @@ import mantis.io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import mantis.io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import rx.Observable;
 import rx.Scheduler;
-import rx.Subscriber;
 import rx.schedulers.Schedulers;
 
 import java.util.List;
@@ -33,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.mantisrx.api.Constants.TunnelPingMessage;
+import static io.mantisrx.api.Util.getLocalRegion;
 
 @Slf4j
 @Singleton
@@ -196,38 +195,43 @@ public class ConnectionBroker {
     private Observable<String> getRemoteDataObservable(String uri, String target, List<String> regions) {
         return Observable.from(regions)
                 .flatMap(region -> {
-                    log.info("Connecting to remote region {} at {}.", region, uri);
-                    return mantisCrossRegionalClient.getSecureSseClient(region)
-                            .submit(HttpClientRequest.createGet(uri))
-                            .retryWhen(Util.getRetryFunc(log, uri + " in " + region))
-                            .doOnError(throwable -> log.warn(
-                                    "Error getting response from remote SSE server for uri {} in region {}: {}",
-                                    uri, region, throwable.getMessage(), throwable)
-                            ).flatMap(remoteResponse -> {
-                                if (!remoteResponse.getStatus().reasonPhrase().equals("OK")) {
-                                    log.warn("Unexpected response from remote sink for uri {} region {}: {}", uri, region, remoteResponse.getStatus().reasonPhrase());
-                                    String err = remoteResponse.getHeaders().get(Constants.metaErrorMsgHeader);
-                                    if (err == null || err.isEmpty())
-                                        err = remoteResponse.getStatus().reasonPhrase();
-                                    return Observable.<MantisServerSentEvent>error(new Exception(err))
-                                            .map(datum -> datum.getEventAsString());
-                                }
-                                final String originReplacement = "\\{\"" + Constants.metaOriginName + "\": \"" + region + "\", ";
-                                return streamContent(remoteResponse, target, region, uri)
-                                        .map(datum -> datum.getEventAsString().replaceFirst("^\\{", originReplacement))
-                                        .doOnError(t -> log.error(t.getMessage()));
-                            })
-                            .subscribeOn(scheduler)
-                            .observeOn(scheduler)
-                            .doOnError(t -> log.warn("Error streaming in remote data ({}). Will retry: {}", region, t.getMessage(), t))
-                            .doOnCompleted(() -> log.info(String.format("remote sink connection complete for uri %s, region=%s", uri, region)));
+                    final String originReplacement = "\\{\"" + Constants.metaOriginName + "\": \"" + region + "\", ";
+                    if (region.equalsIgnoreCase(getLocalRegion())) {
+                        return this.connect(PushConnectionDetails.from(uri))
+                                .map(datum -> datum.replaceFirst("^\\{", originReplacement));
+                    } else {
+                        log.info("Connecting to remote region {} at {}.", region, uri);
+                        return mantisCrossRegionalClient.getSecureSseClient(region)
+                                .submit(HttpClientRequest.createGet(uri))
+                                .retryWhen(Util.getRetryFunc(log, uri + " in " + region))
+                                .doOnError(throwable -> log.warn(
+                                        "Error getting response from remote SSE server for uri {} in region {}: {}",
+                                        uri, region, throwable.getMessage(), throwable)
+                                ).flatMap(remoteResponse -> {
+                                    if (!remoteResponse.getStatus().reasonPhrase().equals("OK")) {
+                                        log.warn("Unexpected response from remote sink for uri {} region {}: {}", uri, region, remoteResponse.getStatus().reasonPhrase());
+                                        String err = remoteResponse.getHeaders().get(Constants.metaErrorMsgHeader);
+                                        if (err == null || err.isEmpty())
+                                            err = remoteResponse.getStatus().reasonPhrase();
+                                        return Observable.<MantisServerSentEvent>error(new Exception(err))
+                                                .map(datum -> datum.getEventAsString());
+                                    }
+                                    return clientResponseToObservable(remoteResponse, target, region, uri)
+                                            .map(datum -> datum.replaceFirst("^\\{", originReplacement))
+                                            .doOnError(t -> log.error(t.getMessage()));
+                                })
+                                .subscribeOn(scheduler)
+                                .observeOn(scheduler)
+                                .doOnError(t -> log.warn("Error streaming in remote data ({}). Will retry: {}", region, t.getMessage(), t))
+                                .doOnCompleted(() -> log.info(String.format("remote sink connection complete for uri %s, region=%s", uri, region)));
+                    }
                 })
                 .observeOn(scheduler)
                 .subscribeOn(scheduler)
                 .doOnError(t -> log.error("Error in flatMapped cross-regional observable for {}", uri, t));
     }
 
-    private Observable<MantisServerSentEvent> streamContent(HttpClientResponse<ServerSentEvent> response, String target, String
+    private Observable<String> clientResponseToObservable(HttpClientResponse<ServerSentEvent> response, String target, String
             region, String uri) {
 
         Counter numRemoteBytes = SpectatorUtils.newCounter(Constants.numRemoteBytesCounterName, target, "region", region);
@@ -256,20 +260,7 @@ public class ConnectionBroker {
                     } catch (Exception e) {
                         log.error("Could not extract data from SSE " + e.getMessage(), e);
                     }
-                    return new MantisServerSentEvent(data);
+                    return data;
                 });
-    }
-
-    public static void main(String[] args) throws InterruptedException {
-
-        Observable.interval(1, TimeUnit.SECONDS)
-                .mergeWith(Observable
-                        .interval(1, TimeUnit.SECONDS)
-                        .filter(x -> x < 0)
-                        .map(x -> x = x * 1000)) // Very big numbers, but never emits anything.
-                .subscribeOn(Schedulers.newThread())
-                .observeOn(Schedulers.newThread())
-                .subscribe(System.out::println);
-        Thread.sleep(5050);
     }
 }
