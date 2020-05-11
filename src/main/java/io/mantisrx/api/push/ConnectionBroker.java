@@ -62,8 +62,7 @@ public class ConnectionBroker {
         if (!connectionCache.containsKey(details)) {
             switch (details.type) {
                 case CONNECT_BY_NAME:
-                    connectionCache.put(details,
-                            getConnectByNameFor(details)
+                    return getConnectByNameFor(details)
                                     .subscribeOn(scheduler)
                                     .doOnUnsubscribe(() -> {
                                         log.info("Purging {} from cache.", details);
@@ -73,8 +72,7 @@ public class ConnectionBroker {
                                         log.info("Purging {} from cache.", details);
                                         connectionCache.remove(details);
                                     })
-                                    .share());
-                    break;
+                                    .share();
                 case CONNECT_BY_ID:
                     connectionCache.put(details,
                             getConnectByIdFor(details)
