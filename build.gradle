@@ -77,22 +77,22 @@ tasks.withType(Javadoc).all {
 
 
 dependencies {
-    compile('com.netflix.zuul:zuul-core:latest.release') {
+    implementation('com.netflix.zuul:zuul-core:latest.release') {
         exclude group: 'com.google.guava', module: 'guava'
         exclude group: 'com.google.inject', module: 'guice'
     }
-    compile 'com.netflix.blitz4j:blitz4j:1.37.2'
-    compile "io.mantisrx:mantis-discovery-proto:$mantisDiscoveryProtoVersion"
-    compile "io.mantisrx:mantis-client:$mantisClientVersion"
-    compile "io.mantisrx:mantis-runtime:$mantisClientVersion"
-    compile "io.mantisrx:mantis-control-plane-client:$mantisClientVersion"
-    compile "io.mantisrx:mql-jvm:3.+"
-    compile "io.vavr:vavr:$vavrVersion"
-    compile "com.google.inject:guice:$guiceVersion"
-    compileOnly "org.projectlombok:lombok:$lombokVersion"
+    implementation 'com.netflix.blitz4j:blitz4j:1.37.2'
+    implementation "io.mantisrx:mantis-discovery-proto:$mantisDiscoveryProtoVersion"
+    implementation "io.mantisrx:mantis-client:$mantisClientVersion"
+    implementation "io.mantisrx:mantis-runtime:$mantisClientVersion"
+    implementation "io.mantisrx:mantis-control-plane-client:$mantisClientVersion"
+    implementation "io.mantisrx:mql-jvm:3.+"
+    implementation "io.vavr:vavr:$vavrVersion"
+    implementation "com.google.inject:guice:$guiceVersion"
+    implementation "org.projectlombok:lombok:$lombokVersion"
     annotationProcessor "org.projectlombok:lombok:$lombokVersion"
 
-    testCompileOnly "org.projectlombok:lombok:$lombokVersion"
+    testImplementation"org.projectlombok:lombok:$lombokVersion"
     testAnnotationProcessor "org.projectlombok:lombok:$lombokVersion"
 }
 
