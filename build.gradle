@@ -53,7 +53,7 @@ ext {
     jsonVersion = '20160810'
     junitVersion = '4.10'
     lombokVersion = '1.18.10'
-    mantisClientVersion = '1.2.17'
+    mantisClientVersion = '1.2.+'
     mantisDiscoveryProtoVersion = '1.2.+'
     mockitoVersion = '1.9.5'
     s3Version = '1.11.566'
