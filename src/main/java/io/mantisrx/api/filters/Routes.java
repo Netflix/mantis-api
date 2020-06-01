@@ -51,7 +51,7 @@ public class Routes extends HttpInboundSyncFilter {
         } else if (path.equalsIgnoreCase("/api/v1/mantis/publish/streamDiscovery")) {
             context.setEndpoint(AppStreamDiscovery.class.getCanonicalName());
         } else if (path.startsWith("/jobClusters/discoveryInfo")) {
-            String jobCluster = request.getPath().replaceFirst(JobDiscoveryInfoCache.PATH_SPEC + "/", "");
+            String jobCluster = request.getPath().replaceFirst(JobDiscoveryInfoCacheHitChecker.PATH_SPEC + "/", "");
             String newUrl = "/api/v1/jobClusters/" + jobCluster + "/latestJobDiscoveryInfo";
             request.setPath(newUrl);
             context.setEndpoint(ZuulEndPointRunner.PROXY_ENDPOINT_FILTER_NAME);

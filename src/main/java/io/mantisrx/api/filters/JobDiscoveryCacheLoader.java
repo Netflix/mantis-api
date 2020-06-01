@@ -15,13 +15,17 @@
  */
 package io.mantisrx.api.filters;
 
+import com.netflix.config.DynamicBooleanProperty;
 import com.netflix.zuul.filters.http.HttpOutboundSyncFilter;
 import com.netflix.zuul.message.http.HttpResponseMessage;
+import io.mantisrx.api.Constants;
 import io.mantisrx.api.services.JobDiscoveryService;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class JobDiscoveryOuboundCache extends HttpOutboundSyncFilter {
+public class JobDiscoveryCacheLoader extends HttpOutboundSyncFilter {
+
+    private static DynamicBooleanProperty cacheEnabled = new DynamicBooleanProperty("mantisapi.cache.enabled", false);
 
     @Override
     public boolean needsBodyBuffered(HttpResponseMessage message) {
@@ -35,7 +39,9 @@ public class JobDiscoveryOuboundCache extends HttpOutboundSyncFilter {
 
     @Override
     public boolean shouldFilter(HttpResponseMessage response) {
-        return response.getOutboundRequest().getPath().matches("^/api/v1/jobClusters/.*/latestJobDiscoveryInfo$");
+        return response.getOutboundRequest().getPath().matches("^/api/v1/jobClusters/.*/latestJobDiscoveryInfo$")
+                && response.getHeaders().get(Constants.MANTISAPI_CACHED_HEADER).isEmpty()
+                && cacheEnabled.get();
     }
 
     @Override
@@ -46,7 +52,7 @@ public class JobDiscoveryOuboundCache extends HttpOutboundSyncFilter {
 
         String responseBody = response.getBodyAsText();
 
-        if (null != responseBody){
+        if (null != responseBody) {
             log.info("Caching latest job discovery info for {}.", jobCluster);
             JobDiscoveryService.jobDiscoveryInfoCache.put(jobCluster, response.getBodyAsText());
         }

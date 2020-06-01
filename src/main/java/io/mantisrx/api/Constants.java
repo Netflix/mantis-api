@@ -28,4 +28,6 @@ public class Constants {
     public static final String numSseErrorsCounterName = "numSseErrors";
 
     public static final String DUMMY_TIMER_DATA = "DUMMY_TIMER_DATA";
+
+    public static final String MANTISAPI_CACHED_HEADER = "x-nflx-mantisapi-cached";
 }

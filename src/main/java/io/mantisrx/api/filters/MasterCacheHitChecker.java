@@ -10,6 +10,7 @@ import com.netflix.zuul.message.http.HttpRequestMessage;
 import com.netflix.zuul.message.http.HttpResponseMessage;
 import com.netflix.zuul.message.http.HttpResponseMessageImpl;
 import com.netflix.zuul.netty.SpectatorUtils;
+import io.mantisrx.api.Constants;
 import io.mantisrx.api.Util;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import lombok.extern.slf4j.Slf4j;
@@ -42,7 +43,7 @@ public class MasterCacheHitChecker extends HttpInboundSyncFilter {
                 HttpResponseMessage response = new HttpResponseMessageImpl(request.getContext(), request, 200);
                 response.setBodyAsText(bodyText);
                 response.getHeaders().set(HttpHeaderNames.CONTENT_TYPE.toString(), HttpHeaderValues.APPLICATION_JSON.toString());
-                response.getHeaders().set("x-nflx-mantisapi-cached", "true");
+                response.getHeaders().set(Constants.MANTISAPI_CACHED_HEADER, "true");
                 request.getContext().setStaticResponse(response);
 
                 cacheHitCounters.computeIfAbsent(key,

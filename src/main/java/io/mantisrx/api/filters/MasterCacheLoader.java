@@ -12,6 +12,7 @@ import com.netflix.spectator.api.Spectator;
 import com.netflix.spectator.api.patterns.PolledMeter;
 import com.netflix.zuul.filters.http.HttpOutboundSyncFilter;
 import com.netflix.zuul.message.http.HttpResponseMessage;
+import io.mantisrx.api.Constants;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.TimeUnit;
@@ -74,6 +75,6 @@ public class MasterCacheLoader extends HttpOutboundSyncFilter {
         return msg.getOutboundRequest().getContext().getRouteVIP() != null
                 && msg.getOutboundRequest().getContext().getRouteVIP().equalsIgnoreCase("api")
                 && msg.getInboundRequest().getMethod().equalsIgnoreCase("get")
-                && msg.getHeaders().get("x-nflx-mantisapi-cached").size() == 0; // Set by the MasterCacheHitChecker, ensures we aren't re-caching.
+                && msg.getHeaders().get(Constants.MANTISAPI_CACHED_HEADER).size() == 0; // Set by the MasterCacheHitChecker, ensures we aren't re-caching.
     }
 }
