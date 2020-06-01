@@ -59,28 +59,88 @@ public class ConnectionBroker {
 
     public Observable<String> connect(PushConnectionDetails details) {
 
+        if (!connectionCache.containsKey(details)) {
             switch (details.type) {
                 case CONNECT_BY_NAME:
                     return getConnectByNameFor(details)
-                                    .subscribeOn(scheduler);
-                case CONNECT_BY_ID:
-                          return getConnectByIdFor(details)
-                            .subscribeOn(scheduler);
-                case JOB_STATUS:
-                          return mantisClient
-                                    .getJobStatusObservable(details.target)
-                                    .subscribeOn(scheduler);
-                case JOB_SCHEDULING_INFO:
-                          return mantisClient.getSchedulingChanges(details.target)
                                     .subscribeOn(scheduler)
-                                    .map(changes -> Try.of(() -> objectMapper.writeValueAsString(changes)).getOrElse("Error"));
+                                    .doOnUnsubscribe(() -> {
+                                        log.info("Purging {} from cache.", details);
+                                        connectionCache.remove(details);
+                                    })
+                                    .doOnCompleted(() -> {
+                                        log.info("Purging {} from cache.", details);
+                                        connectionCache.remove(details);
+                                    })
+                                    .share();
+                case CONNECT_BY_ID:
+                    connectionCache.put(details,
+                            getConnectByIdFor(details)
+                            .subscribeOn(scheduler)
+                            .doOnUnsubscribe(() -> {
+                                log.info("Purging {} from cache.", details);
+                                connectionCache.remove(details);
+                            })
+                            .doOnCompleted(() -> {
+                                log.info("Purging {} from cache.", details);
+                                connectionCache.remove(details);
+                            })
+                            .share());
+                    break;
+
+                case JOB_STATUS:
+                    connectionCache.put(details,
+                            mantisClient
+                                    .getJobStatusObservable(details.target)
+                                    .subscribeOn(scheduler)
+                                    .doOnCompleted(() -> {
+                                        log.info("Purging {} from cache.", details);
+                                        connectionCache.remove(details);
+                                    })
+                                    .doOnUnsubscribe(() -> {
+                                        log.info("Purging {} from cache.", details);
+                                        connectionCache.remove(details);
+                                    })
+                                    .replay(25)
+                                    .autoConnect());
+                    break;
+                case JOB_SCHEDULING_INFO:
+                    connectionCache.put(details,
+                            mantisClient.getSchedulingChanges(details.target)
+                                    .subscribeOn(scheduler)
+                                    .map(changes -> Try.of(() -> objectMapper.writeValueAsString(changes)).getOrElse("Error"))
+                                    .doOnCompleted(() -> {
+                                        log.info("Purging {} from cache.", details);
+                                        connectionCache.remove(details);
+                                    })
+                                    .doOnUnsubscribe(() -> {
+                                        log.info("Purging {} from cache.", details);
+                                        connectionCache.remove(details);
+                                    })
+                            .replay(1)
+                            .autoConnect());
+                    break;
 
                 case JOB_CLUSTER_DISCOVERY:
-                            return jobDiscoveryService.jobDiscoveryInfoStream(jobDiscoveryService.key(JobDiscoveryService.LookupType.JOB_CLUSTER, details.target))
+                    connectionCache.put(details,
+                            jobDiscoveryService.jobDiscoveryInfoStream(jobDiscoveryService.key(JobDiscoveryService.LookupType.JOB_CLUSTER, details.target))
                                     .subscribeOn(scheduler)
-                                    .map(jdi ->Try.of(() -> objectMapper.writeValueAsString(jdi)).getOrElse("Error"));
+                                    .map(jdi ->Try.of(() -> objectMapper.writeValueAsString(jdi)).getOrElse("Error"))
+                                    .doOnCompleted(() -> {
+                                        log.info("Purging {} from cache.", details);
+                                        connectionCache.remove(details);
+                                    })
+                                    .doOnUnsubscribe(() -> {
+                                        log.info("Purging {} from cache.", details);
+                                        connectionCache.remove(details);
+                                    })
+                                    .replay(1)
+                                    .autoConnect());
+                    break;
             }
-            throw new RuntimeException("Unknown connection type: " + details.type + ".");
+            log.info("Caching connection for: {}", details);
+        }
+        return connectionCache.get(details);
     }
 
     //
