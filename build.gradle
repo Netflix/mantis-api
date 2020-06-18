@@ -111,6 +111,9 @@ dependencies {
     implementation "org.eclipse.jetty:jetty-servlets:$jettyVersion"
     implementation "org.eclipse.jetty.websocket:websocket-server:$jettyVersion"
 
+    implementation 'com.github.ben-manes.caffeine:caffeine:2.8.4'
+    implementation 'com.github.ben-manes.caffeine:guava:2.8.4'
+
     implementation "com.amazonaws:aws-java-sdk-s3:$s3Version"
 
     testImplementation "junit:junit:$junitVersion"
