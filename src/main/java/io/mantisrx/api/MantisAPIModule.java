@@ -1,155 +1,142 @@
 /*
- * Copyright 2019 Netflix, Inc.
+ * Copyright 2018 Netflix, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *      Licensed under the Apache License, Version 2.0 (the "License");
+ *      you may not use this file except in compliance with the License.
+ *      You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *          http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *      Unless required by applicable law or agreed to in writing, software
+ *      distributed under the License is distributed on an "AS IS" BASIS,
+ *      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *      See the License for the specific language governing permissions and
+ *      limitations under the License.
  */
 
 package io.mantisrx.api;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
-import java.util.List;
-import java.util.Properties;
-
-import javax.net.ssl.SSLContext;
-
-import com.google.common.collect.Lists;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
-import com.google.inject.TypeLiteral;
 import com.google.inject.name.Named;
-import com.google.inject.name.Names;
-import com.google.inject.util.Modules;
-import com.netflix.archaius.api.Property;
-import com.netflix.archaius.api.PropertyRepository;
-import com.netflix.archaius.config.MapConfig;
-import com.netflix.archaius.guice.ArchaiusModule;
+import com.netflix.config.ConfigurationManager;
+import com.netflix.discovery.AbstractDiscoveryClientOptionalArgs;
+import com.netflix.discovery.DiscoveryClient;
+import com.netflix.netty.common.accesslog.AccessLogPublisher;
+import com.netflix.netty.common.status.ServerStatusManager;
 import com.netflix.spectator.api.DefaultRegistry;
 import com.netflix.spectator.api.Registry;
-import com.netflix.spectator.api.Spectator;
-import io.mantisrx.api.handlers.connectors.RemoteSinkConnector;
-import io.mantisrx.api.handlers.domain.Artifact;
-import io.mantisrx.api.tunnel.DummyStreamingClientFactory;
-import io.mantisrx.api.tunnel.StreamingClientFactory;
+import com.netflix.spectator.api.patterns.ThreadPoolMonitor;
+import com.netflix.zuul.BasicRequestCompleteHandler;
+import com.netflix.zuul.FilterFileManager;
+import com.netflix.zuul.RequestCompleteHandler;
+import com.netflix.zuul.context.SessionContextDecorator;
+import com.netflix.zuul.context.ZuulSessionContextDecorator;
+import com.netflix.zuul.init.ZuulFiltersModule;
+import com.netflix.zuul.netty.server.BaseServerStartup;
+import com.netflix.zuul.netty.server.ClientRequestReceiver;
+import com.netflix.zuul.origins.BasicNettyOriginManager;
+import com.netflix.zuul.origins.OriginManager;
+import io.mantisrx.api.services.artifacts.ArtifactManager;
+import io.mantisrx.api.services.artifacts.InMemoryArtifactManager;
+import com.netflix.zuul.stats.BasicRequestMetricsPublisher;
+import com.netflix.zuul.stats.RequestMetricsPublisher;
+import io.mantisrx.api.tunnel.MantisCrossRegionalClient;
+import io.mantisrx.api.tunnel.NoOpCrossRegionalClient;
 import io.mantisrx.client.MantisClient;
-import io.mantisrx.server.master.client.MantisMasterClientApi;
 import io.mantisrx.server.master.client.MasterClientWrapper;
-import io.vavr.Tuple2;
-import io.vavr.control.Try;
-import org.eclipse.jetty.servlet.ServletHolder;
+import org.apache.commons.configuration.AbstractConfiguration;
+import rx.Scheduler;
+import rx.schedulers.Schedulers;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.*;
 
 public class MantisAPIModule extends AbstractModule {
-
-    protected final String propertiesFile;
-    protected static final String CONFIG = "mantisapi";
-
-    public MantisAPIModule(String propertiesFile) {
-        this.propertiesFile = propertiesFile;
-    }
-
     @Override
     protected void configure() {
+        bind(AbstractConfiguration.class).toInstance(ConfigurationManager.getConfigInstance());
+
+        bind(BaseServerStartup.class).to(MantisServerStartup.class);
+
+        // use provided basic netty origin manager
+        bind(OriginManager.class).to(BasicNettyOriginManager.class);
+
+        // zuul filter loading
+        install(new ZuulFiltersModule());
+        bind(FilterFileManager.class).asEagerSingleton();
+
+        // general server bindings
+        bind(ServerStatusManager.class); // health/discovery status
+        bind(SessionContextDecorator.class).to(ZuulSessionContextDecorator.class); // decorate new sessions when requests come in
+        bind(Registry.class).to(DefaultRegistry.class); // atlas metrics registry
+        bind(RequestCompleteHandler.class).to(BasicRequestCompleteHandler.class); // metrics post-request completion
+        bind(AbstractDiscoveryClientOptionalArgs.class).to(DiscoveryClient.DiscoveryClientOptionalArgs.class); // discovery client
+        bind(RequestMetricsPublisher.class).to(BasicRequestMetricsPublisher.class); // timings publisher
+
+        // access logger, including request ID generator
+        bind(AccessLogPublisher.class).toInstance(new AccessLogPublisher("ACCESS",
+                (channel, httpRequest) -> ClientRequestReceiver.getRequestFromChannel(channel).getContext().getUUID()));
+
+        bind(ArtifactManager.class).to(InMemoryArtifactManager.class);
+        bind(MantisCrossRegionalClient.class).to(NoOpCrossRegionalClient.class);
+
+        bind(ObjectMapper.class).toInstance(new ObjectMapper()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false));
+    }
+
+    @Provides
+    @Singleton
+    MasterClientWrapper provideMantisClientWrapper(AbstractConfiguration configuration) {
         Properties props = new Properties();
-        if (propertiesFile != null) {
-            // Load configuration from the provided file
-            try (FileInputStream infile = new FileInputStream(propertiesFile)) {
-                props.load(infile);
-            } catch (IOException e) {
-                throw new IllegalArgumentException("Cannot load configuration from file " + propertiesFile);
-            }
-        }
+        configuration.getKeys("mantis").forEachRemaining(key -> {
+            props.put(key, configuration.getString(key));
+        });
 
-        install(Modules.override(new ArchaiusModule() {
-            @Override
-            protected void configureArchaius() {
-                bindConfigurationName().toInstance(CONFIG);
-                bindApplicationConfigurationOverride().toInstance(MapConfig.from(props));
-                bind(Properties.class).toInstance(props);
-            }
-        }).with(new AbstractModule() {
-            @Override
-            protected void configure() {
+        return new MasterClientWrapper(props);
+    }
 
-            }
-        }));
+    @Provides @Singleton MantisClient provideMantisClient(AbstractConfiguration configuration) {
+        Properties props = new Properties();
+        configuration.getKeys("mantis").forEachRemaining(key -> {
+            props.put(key, configuration.getString(key));
+        });
 
-        //
-        // Spectator
-        //
-
-        Registry registry = new DefaultRegistry(); // You can and should swap in your own registry here!
-        Spectator.globalRegistry().add(registry); // TODO: This is present for the many static contexts, in the future refactoring could make this obsolete.
-        bind(Registry.class).toInstance(registry);
-
-        //
-        // MantisAPI specific implementations
-        //
-
-
-        Integer threads = Try.of(() -> Integer.parseInt(props.getProperty(PropertyNames.mantisAPIWorkerThreads))).getOrElse(256);
-        bind(Integer.class).annotatedWith(Names.named("threads")).toInstance(threads);
-        bind(new TypeLiteral<List<Tuple2<String, ServletHolder>>>() {}).annotatedWith(Names.named("servlets")).toInstance(Lists.newArrayList());
-
-        bind(WorkerThreadPool.class).toInstance(new WorkerThreadPool(registry, threads));
-        bind(StreamingClientFactory.class).to(DummyStreamingClientFactory.class);
+        return new MantisClient(props);
     }
 
     @Provides
-    ArtifactManager getArtifactManager(PropertyRepository propertyRepository) {
-        return new LocalFileBasedArtifactManager(propertyRepository);
-    }
-
-
-    @Provides @Singleton
-    MasterClientWrapper getMasterClientWrapper(Properties properties) {
-        return new MasterClientWrapper(properties);
-    }
-
-    @Provides @Singleton
-    MantisClient getMantisClient(Properties properties) {
-        return new MantisClient(properties);
-    }
-
-    @Provides @Singleton MantisMasterClientApi getMantisMasterClientApi(MasterClientWrapper masterClientWrapper) {
-        return new MantisMasterClientApi(masterClientWrapper.getMasterMonitor());
+    @Singleton
+    @Named("io-scheduler")
+    Scheduler provideIoScheduler(Registry registry) {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(16, 128, 60,
+                TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+        ThreadPoolMonitor.attach(registry, executor, "io-thread-pool");
+        return Schedulers.from(executor);
     }
 
     @Provides
-    MantisAPIServer getServer(MasterClientWrapper masterClientWrapper,
-                              MantisClient mantisClient,
-                              MantisMasterClientApi mantisMasterClientApi,
-                              StreamingClientFactory streamingClientFactory,
-                              RemoteSinkConnector remoteSinkConnector,
-                              PropertyRepository propertyRepository,
-                              Registry registry,
-                              ArtifactManager artifactManager,
-                              WorkerThreadPool workerThreadPool,
-                              @Named("servlets") List<Tuple2<String, ServletHolder>> additionalServlets) throws NoSuchAlgorithmException {
+    @Singleton
+    @Named("push-prefixes")
+    List<String> providePushPrefixes() {
+        List<String> pushPrefixes = new ArrayList<>(10);
+        pushPrefixes.add("/jobconnectbyid");
+        pushPrefixes.add("/api/v1/jobconnectbyid");
+        pushPrefixes.add("/jobconnectbyname");
+        pushPrefixes.add("/api/v1/jobconnectbyname");
+        pushPrefixes.add("/jobsubmitandconnect");
+        pushPrefixes.add("/api/v1/jobsubmitandconnect");
+        pushPrefixes.add("/jobClusters/discoveryInfoStream");
+        pushPrefixes.add("/jobstatus");
+        pushPrefixes.add("/api/v1/jobstatus");
+        pushPrefixes.add("/api/v1/jobs/schedulingInfo/");
 
-        Property<Integer> port = propertyRepository.get("mantistunnel.server.port", Integer.class)
-                .orElse(7101);
-        Property<Integer> sslPort = propertyRepository.get("mantistunnel.server.sslPort", Integer.class)
-                .orElse(7004);
-        return new MantisAPIServer(port.get(), sslPort.get(), mantisClient, masterClientWrapper, mantisMasterClientApi,
-                SSLContext.getDefault(), remoteSinkConnector, streamingClientFactory, propertyRepository, registry,
-                workerThreadPool, artifactManager, additionalServlets);
+        return pushPrefixes;
     }
 
-    @Provides
-    RemoteSinkConnector getRemoteSinkConnector(StreamingClientFactory streamingClientFactory, Registry registry) {
-        return new RemoteSinkConnector(streamingClientFactory, registry);
-    }
 }

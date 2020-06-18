@@ -4,7 +4,7 @@ The primary objective of Mantis API is to provide a horizontally scalable front 
 There are three primary pieces of functionality;
 
 1. Proxying Calls to Mantis Master
-1. Streaming data from Mantis Jobs on behalf of clients (including cross regional)
+1. Streaming data from Mantis Jobs on behalf of client
 1. Proxying data between regions using the tunnel
 
 These pieces are wired together using Zuul's concept of a `ChannelInitializer` which is a subclass of Netty's concept of the same name. The [MantisApiServerChannelInitializer](src/main/java/io/mantisrx/api/initializers/MantisApiServerChannelInitializer.java)
