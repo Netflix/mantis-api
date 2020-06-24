@@ -26,7 +26,7 @@ import rx.schedulers.Schedulers;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.WeakHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -43,7 +43,7 @@ public class ConnectionBroker {
     private final Scheduler scheduler;
     private final ObjectMapper objectMapper;
 
-    private final Map<PushConnectionDetails, Observable<String>> connectionCache = new ConcurrentHashMap<>();
+    private final Map<PushConnectionDetails, Observable<String>> connectionCache = new WeakHashMap<>();
 
     @Inject
     public ConnectionBroker(MantisClient mantisClient,
@@ -74,8 +74,7 @@ public class ConnectionBroker {
                                     })
                                     .share();
                 case CONNECT_BY_ID:
-                    connectionCache.put(details,
-                            getConnectByIdFor(details)
+                    return getConnectByIdFor(details)
                             .subscribeOn(scheduler)
                             .doOnUnsubscribe(() -> {
                                 log.info("Purging {} from cache.", details);
@@ -85,9 +84,7 @@ public class ConnectionBroker {
                                 log.info("Purging {} from cache.", details);
                                 connectionCache.remove(details);
                             })
-                            .share());
-                    break;
-
+                            .share();
                 case JOB_STATUS:
                     connectionCache.put(details,
                             mantisClient
