@@ -16,7 +16,8 @@ public @Value class PushConnectionDetails {
         CONNECT_BY_ID,
         JOB_STATUS,
         JOB_SCHEDULING_INFO,
-        JOB_CLUSTER_DISCOVERY
+        JOB_CLUSTER_DISCOVERY,
+        METRICS
     }
 
     private final String uri;
@@ -42,6 +43,8 @@ public @Value class PushConnectionDetails {
             return TARGET_TYPE.JOB_SCHEDULING_INFO;
         } else if (uri.startsWith("/jobClusters/discoveryInfoStream/")) {
             return TARGET_TYPE.JOB_CLUSTER_DISCOVERY;
+        } else if (uri.startsWith("/api/v1/metrics/")) {
+            return TARGET_TYPE.METRICS;
         } else {
             throw new IllegalArgumentException("Unable to determine push connection type from URI: " + uri);
         }
@@ -54,8 +57,7 @@ public @Value class PushConnectionDetails {
      * @return The target requested by the URI.
      */
     public static String determineTarget(final String uri) {
-
-        String sanitized = uri.replaceFirst("^/(api/v1/)?(jobconnectbyid|jobconnectbyname|jobstatus|jobs/schedulingInfo|jobClusters/discoveryInfoStream)/", "");
+        String sanitized = uri.replaceFirst("^/(api/v1/)?(jobconnectbyid|jobconnectbyname|jobstatus|jobs/schedulingInfo|jobClusters/discoveryInfoStream|metrics)/", "");
         QueryStringDecoder queryStringDecoder = new QueryStringDecoder(sanitized);
         return queryStringDecoder.path();
     }

@@ -48,6 +48,7 @@ import io.mantisrx.api.tunnel.MantisCrossRegionalClient;
 import io.mantisrx.api.tunnel.NoOpCrossRegionalClient;
 import io.mantisrx.client.MantisClient;
 import io.mantisrx.server.master.client.MasterClientWrapper;
+import io.mantisrx.server.worker.client.WorkerMetricsClient;
 import org.apache.commons.configuration.AbstractConfiguration;
 import rx.Scheduler;
 import rx.schedulers.Schedulers;
@@ -120,11 +121,20 @@ public class MantisAPIModule extends AbstractModule {
         return Schedulers.from(executor);
     }
 
+    @Provides @Singleton
+    WorkerMetricsClient provideWorkerMetricsClient(AbstractConfiguration configuration) {
+        Properties props = new Properties();
+        configuration.getKeys("mantis").forEachRemaining(key -> {
+            props.put(key, configuration.getString(key));
+        });
+        return new WorkerMetricsClient(props);
+    }
+
     @Provides
     @Singleton
     @Named("push-prefixes")
     List<String> providePushPrefixes() {
-        List<String> pushPrefixes = new ArrayList<>(10);
+        List<String> pushPrefixes = new ArrayList<>(20);
         pushPrefixes.add("/jobconnectbyid");
         pushPrefixes.add("/api/v1/jobconnectbyid");
         pushPrefixes.add("/jobconnectbyname");
@@ -135,6 +145,7 @@ public class MantisAPIModule extends AbstractModule {
         pushPrefixes.add("/jobstatus");
         pushPrefixes.add("/api/v1/jobstatus");
         pushPrefixes.add("/api/v1/jobs/schedulingInfo/");
+        pushPrefixes.add("/api/v1/metrics");
 
         return pushPrefixes;
     }

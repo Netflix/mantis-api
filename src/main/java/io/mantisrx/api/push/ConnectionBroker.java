@@ -15,13 +15,19 @@ import io.mantisrx.client.SinkConnectionFunc;
 import io.mantisrx.client.SseSinkConnectionFunction;
 import io.mantisrx.common.MantisServerSentEvent;
 import io.mantisrx.runtime.parameter.SinkParameters;
+import io.mantisrx.server.worker.client.MetricsClient;
+import io.mantisrx.server.worker.client.SseWorkerConnectionFunction;
+import io.mantisrx.server.worker.client.WorkerConnectionsStatus;
+import io.mantisrx.server.worker.client.WorkerMetricsClient;
 import io.vavr.control.Try;
 import lombok.extern.slf4j.Slf4j;
 import mantis.io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import mantis.io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import mantis.io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import rx.Observable;
+import rx.Observer;
 import rx.Scheduler;
+import rx.functions.Action1;
 import rx.schedulers.Schedulers;
 
 import java.util.List;
@@ -39,6 +45,7 @@ public class ConnectionBroker {
 
     private final MantisClient mantisClient;
     private final MantisCrossRegionalClient mantisCrossRegionalClient;
+    private final WorkerMetricsClient workerMetricsClient;
     private final JobDiscoveryService jobDiscoveryService;
     private final Scheduler scheduler;
     private final ObjectMapper objectMapper;
@@ -48,10 +55,12 @@ public class ConnectionBroker {
     @Inject
     public ConnectionBroker(MantisClient mantisClient,
                             MantisCrossRegionalClient mantisCrossRegionalClient,
+                            WorkerMetricsClient workerMetricsClient,
                             @Named("io-scheduler") Scheduler scheduler,
                             ObjectMapper objectMapper) {
         this.mantisClient = mantisClient;
         this.mantisCrossRegionalClient = mantisCrossRegionalClient;
+        this.workerMetricsClient = workerMetricsClient;
         this.jobDiscoveryService = JobDiscoveryService.getInstance(mantisClient, scheduler);
         this.scheduler = scheduler;
         this.objectMapper = objectMapper;
@@ -85,6 +94,19 @@ public class ConnectionBroker {
                                 connectionCache.remove(details);
                             })
                             .share();
+
+                case METRICS:
+                    return getWorkerMetrics(details)
+                            .subscribeOn(scheduler)
+                            .doOnUnsubscribe(() -> {
+                                log.info("Purging {} from cache.", details);
+                                connectionCache.remove(details);
+                            })
+                            .doOnCompleted(() -> {
+                                log.info("Purging {} from cache.", details);
+                                connectionCache.remove(details);
+                            });
+
                 case JOB_STATUS:
                     connectionCache.put(details,
                             mantisClient
@@ -257,5 +279,59 @@ public class ConnectionBroker {
                     }
                     return data;
                 });
+    }
+
+    private Observable<String> getWorkerMetrics(PushConnectionDetails details) {
+
+        final String jobId = details.target;
+
+        SinkParameters metricNamesFilter = new SinkParameters.Builder().build();
+        /*
+        try {
+            SinkParameters.Builder sinkParamsBuilder = new SinkParameters.Builder();
+            for (String metric : metricGroups) {
+                sinkParamsBuilder = sinkParamsBuilder.withParameter(METRIC_NAME_STR, metric);
+            }
+
+            metricNamesFilter = sinkParamsBuilder.build();
+        } catch (UnsupportedEncodingException e) {
+            log.error("error encoding sink parameters", e);
+        }
+         */
+
+        final MetricsClient<MantisServerSentEvent> metricsClient = workerMetricsClient.getMetricsClientByJobId(jobId,
+                new SseWorkerConnectionFunction(true, new Action1<Throwable>() {
+                    @Override
+                    public void call(Throwable throwable) {
+                        log.error("Metric connection error: " + throwable.getMessage());
+                        try {
+                            Thread.sleep(500);
+                        } catch (InterruptedException ie) {
+                            log.error("Interrupted waiting for retrying connection");
+                        }
+                    }
+                }, metricNamesFilter),
+                new Observer<WorkerConnectionsStatus>() {
+                    @Override
+                    public void onCompleted() {
+                        log.info("got onCompleted in WorkerConnStatus obs");
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        log.info("got onError in WorkerConnStatus obs");
+                    }
+
+                    @Override
+                    public void onNext(WorkerConnectionsStatus workerConnectionsStatus) {
+                        log.info("got WorkerConnStatus {}", workerConnectionsStatus);
+                    }
+                });
+
+        return metricsClient
+                .getResults()
+                .flatMap(metrics -> metrics
+                        .map(MantisServerSentEvent::getEventAsString));
+
     }
 }

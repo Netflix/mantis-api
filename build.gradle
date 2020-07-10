@@ -82,6 +82,7 @@ dependencies {
         exclude group: 'com.google.inject', module: 'guice'
     }
     implementation 'com.netflix.blitz4j:blitz4j:1.37.2'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.10.2'
     api "io.mantisrx:mantis-discovery-proto:$mantisDiscoveryProtoVersion"
     api "io.mantisrx:mantis-client:$mantisClientVersion"
     api "io.mantisrx:mantis-runtime:$mantisClientVersion"
