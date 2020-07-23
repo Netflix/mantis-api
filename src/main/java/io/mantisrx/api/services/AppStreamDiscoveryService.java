@@ -15,6 +15,7 @@
  */
 package io.mantisrx.api.services;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
@@ -54,11 +55,10 @@ public class AppStreamDiscoveryService {
 
     @Inject
     public AppStreamDiscoveryService(MantisClient mantisClient,
-                                     @Named("io-scheduler") Scheduler scheduler,
-                                     ObjectMapper objectMapper) {
+                                     @Named("io-scheduler") Scheduler scheduler) {
         this.mantisClient = mantisClient;
         this.scheduler = scheduler;
-        this.objectMapper = objectMapper;
+        this.objectMapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
         this.appJobClusterMappingNullCount = SpectatorUtils.newCounter("appJobClusterMappingNull", "mantisapi");
         this.appJobClusterMappingRequestCount = SpectatorUtils.newCounter("appJobClusterMappingRequest", "mantisapi", "app", "unknown");

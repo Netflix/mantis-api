@@ -38,10 +38,9 @@ public class MREAppStreamToJobClusterMapping extends HttpSyncEndpoint {
     public static final String PATH_SPEC = "/api/v1/mantis/publish/streamJobClusterMap";
 
     @Inject
-    public MREAppStreamToJobClusterMapping(AppStreamDiscoveryService appStreamDiscoveryService,
-                                           ObjectMapper objectMapper) {
+    public MREAppStreamToJobClusterMapping(AppStreamDiscoveryService appStreamDiscoveryService) {
         this.appStreamDiscoveryService = appStreamDiscoveryService;
-        this.objectMapper = objectMapper;
+        this.objectMapper = new ObjectMapper();
     }
 
     @Override
