@@ -16,8 +16,8 @@
 
 package io.mantisrx.api.filters;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.mantisrx.shaded.com.fasterxml.jackson.core.JsonProcessingException;
+import io.mantisrx.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.zuul.filters.http.HttpSyncEndpoint;
 import com.netflix.zuul.message.http.HttpRequestMessage;
 import com.netflix.zuul.message.http.HttpResponseMessage;

@@ -15,7 +15,7 @@
  */
 package io.mantisrx.api.filters;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.mantisrx.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.netflix.mantis.discovery.proto.AppJobClustersMap;
 import com.netflix.zuul.filters.http.HttpSyncEndpoint;

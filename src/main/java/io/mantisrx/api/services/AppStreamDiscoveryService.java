@@ -15,7 +15,7 @@
  */
 package io.mantisrx.api.services;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.mantisrx.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.netflix.config.DynamicStringProperty;
