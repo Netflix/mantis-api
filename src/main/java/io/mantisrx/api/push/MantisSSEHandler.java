@@ -71,7 +71,7 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
             headers.set(HttpHeaderNames.CACHE_CONTROL, "no-cache, no-store, max-age=0, must-revalidate");
             headers.set(HttpHeaderNames.PRAGMA, HttpHeaderValues.NO_CACHE);
             headers.set(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
-            response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
+//            response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
             ctx.writeAndFlush(response);
 
             final String uri = request.uri();
