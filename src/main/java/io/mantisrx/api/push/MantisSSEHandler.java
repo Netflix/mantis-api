@@ -30,6 +30,7 @@ import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Http handler for the WebSocket/SSE paths.
@@ -81,6 +82,7 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
             log.info("SSE Connecting for: {}", pcd);
 
             boolean tunnelPingsEnabled = isTunnelPingsEnabled(uri);
+            AtomicLong lastWritableTimestamp = new AtomicLong(System.currentTimeMillis());
 
             final String[] tags = Util.getTaglist(uri, pcd.target);
             Counter numDroppedBytesCounter = SpectatorUtils.newCounter(Constants.numDroppedBytesCounterName, pcd.target, tags);
@@ -110,6 +112,7 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
                     .filter(Constants.DUMMY_TIMER_DATA::equals)
                     .doOnNext(__ -> {
                         if (ctx.channel().isWritable()) {
+                            lastWritableTimestamp.set(System.currentTimeMillis());
                             final List<String> items = new ArrayList<>(queue.size());
                             queue.drainTo(items);
                             for (String data : items) {
@@ -117,14 +120,16 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
                               numMessagesCounter.increment();
                               numBytesCounter.increment(data.length());
                             }
+                        } else {
+                            if (lastWritableTimestamp.get() < System.currentTimeMillis() - 5 * 60 * 1000) {
+                                log.info("Channel for {} has been unwritable for five minutes. Unsubscribing.", pcd);
+                                if (!this.subscription.isUnsubscribed()) {
+                                    this.subscription.unsubscribe();
+                                }
+                            }
                         }
                     })
                     .subscribe();
-
-
-                    /*
-                     */
-
         } else {
             ctx.fireChannelRead(request.retain());
         }
@@ -160,6 +165,7 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
         if (this.subscription != null && !this.subscription.isUnsubscribed()) {
             this.subscription.unsubscribe();
         }
+        log.info("Exception Caught. Cleaning up subscription.");
         cause.printStackTrace();
         ctx.close();
     }
@@ -169,7 +175,56 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
         if (this.subscription != null && !this.subscription.isUnsubscribed()) {
             this.subscription.unsubscribe();
         }
+        log.info("Channel Unregistered. Cleaning up subscription.");
         super.channelUnregistered(ctx);
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        // TODO: Possible option for detecting connection reuse.
+        log.info("Channel Inactive. Cleaning up subscription.");
+        super.channelInactive(ctx);
+    }
+
+    @Override
+    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+        // TODO: Won't work for connection cleanup, happens on inbound.
+        //log.info("Channel Read Complete. Cleaning up subscription.");
+        super.channelReadComplete(ctx);
+    }
+
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        // TODO: Won't work for connection cleanup, happens on inbound.
+        //log.info("User Event Triggered. Cleaning up connection.");
+        super.userEventTriggered(ctx, evt);
+    }
+
+    @Override
+    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        // TODO: Won't work for connection cleanup, happens on inbound.
+        //log.info("Channel Handler Added. Cleaning up connection.");
+        super.handlerAdded(ctx);
+    }
+
+    @Override
+    public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
+        // TODO: Possible option for detecting connection reuse.
+        log.info("Channel Handler Removed. Cleaning up connection.");
+        super.handlerRemoved(ctx);
+    }
+
+    @Override
+    public boolean acceptInboundMessage(Object msg) throws Exception {
+        // TODO: Won't work for connection cleanup, happens on inbound.
+        //log.info("Accepting Inbound Message.");
+        return super.acceptInboundMessage(msg);
+    }
+
+    @Override
+    public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
+        log.info("Channel Writability Changed");
+        super.channelWritabilityChanged(ctx);
     }
 
     public String jobSubmit(FullHttpRequest request) {
