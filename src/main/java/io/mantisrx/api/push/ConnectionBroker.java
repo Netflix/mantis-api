@@ -286,18 +286,6 @@ public class ConnectionBroker {
         final String jobId = details.target;
 
         SinkParameters metricNamesFilter = details.getSinkparameters();
-        /*
-        try {
-            SinkParameters.Builder sinkParamsBuilder = new SinkParameters.Builder();
-            for (String metric : metricGroups) {
-                sinkParamsBuilder = sinkParamsBuilder.withParameter(METRIC_NAME_STR, metric);
-            }
-
-            metricNamesFilter = sinkParamsBuilder.build();
-        } catch (UnsupportedEncodingException e) {
-            log.error("error encoding sink parameters", e);
-        }
-         */
 
         final MetricsClient<MantisServerSentEvent> metricsClient = workerMetricsClient.getMetricsClientByJobId(jobId,
                 new SseWorkerConnectionFunction(true, new Action1<Throwable>() {
