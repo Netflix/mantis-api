@@ -285,7 +285,7 @@ public class ConnectionBroker {
 
         final String jobId = details.target;
 
-        SinkParameters metricNamesFilter = new SinkParameters.Builder().build();
+        SinkParameters metricNamesFilter = details.getSinkparameters();
         /*
         try {
             SinkParameters.Builder sinkParamsBuilder = new SinkParameters.Builder();
