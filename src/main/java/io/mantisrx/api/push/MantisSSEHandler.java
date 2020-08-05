@@ -146,7 +146,7 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
 
     private boolean isWebsocketUpgrade(HttpRequest request) {
         HttpHeaders headers = request.headers();
-        return "Upgrade".equalsIgnoreCase(headers.get(HttpHeaderNames.CONNECTION)) &&
+        return "Upgrade".containsIgnoreCase(headers.get(HttpHeaderNames.CONNECTION)) &&
                 "WebSocket".equalsIgnoreCase(headers.get(HttpHeaderNames.UPGRADE));
     }
 
