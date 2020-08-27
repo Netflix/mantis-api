@@ -81,7 +81,13 @@ dependencies {
         exclude group: 'com.google.guava', module: 'guava'
         exclude group: 'com.google.inject', module: 'guice'
     }
+    api('com.netflix.zuul:zuul-guice:latest.release') {
+        exclude group: 'com.google.guava', module: 'guava'
+        exclude group: 'com.google.inject', module: 'guice'
+    }
     implementation 'com.netflix.blitz4j:blitz4j:1.37.2'
+    implementation "com.netflix.governator:governator:1.+"
+    implementation "org.apache.commons:commons-lang3:3.+"
     api "io.mantisrx:mantis-discovery-proto:$mantisDiscoveryProtoVersion"
     api "io.mantisrx:mantis-client:$mantisClientVersion"
     api "io.mantisrx:mantis-runtime:$mantisClientVersion"
