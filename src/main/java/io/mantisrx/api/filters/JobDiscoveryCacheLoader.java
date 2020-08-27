@@ -40,7 +40,7 @@ public class JobDiscoveryCacheLoader extends HttpOutboundSyncFilter {
     @Override
     public boolean shouldFilter(HttpResponseMessage response) {
         return response.getOutboundRequest().getPath().matches("^/api/v1/jobClusters/.*/latestJobDiscoveryInfo$")
-                && response.getHeaders().get(Constants.MANTISAPI_CACHED_HEADER).isEmpty()
+                && response.getHeaders().getAll(Constants.MANTISAPI_CACHED_HEADER).isEmpty()
                 && cacheEnabled.get();
     }
 

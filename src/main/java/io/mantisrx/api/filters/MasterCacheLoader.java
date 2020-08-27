@@ -75,6 +75,6 @@ public class MasterCacheLoader extends HttpOutboundSyncFilter {
         return msg.getOutboundRequest().getContext().getRouteVIP() != null
                 && msg.getOutboundRequest().getContext().getRouteVIP().equalsIgnoreCase("api")
                 && msg.getInboundRequest().getMethod().equalsIgnoreCase("get")
-                && msg.getHeaders().get(Constants.MANTISAPI_CACHED_HEADER).size() == 0; // Set by the MasterCacheHitChecker, ensures we aren't re-caching.
+                && msg.getHeaders().getAll(Constants.MANTISAPI_CACHED_HEADER).size() == 0; // Set by the MasterCacheHitChecker, ensures we aren't re-caching.
     }
 }

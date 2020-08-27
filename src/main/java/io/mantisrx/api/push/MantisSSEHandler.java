@@ -148,8 +148,10 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
         HttpHeaders headers = request.headers();
         // Header "Connection" contains "upgrade" (case insensitive) and
         // Header "Upgrade" equals "websocket" (case insensitive)
-        return headers.get(HttpHeaderNames.CONNECTION).toLowerCase().contains("upgrade") &&
-                headers.get(HttpHeaderNames.UPGRADE).toLowerCase().equals("websocket");
+        String connection = headers.get(HttpHeaderNames.CONNECTION);
+        String upgrade = headers.get(HttpHeaderNames.UPGRADE);
+        return connection != null && connection.toLowerCase().contains("upgrade") &&
+                upgrade != null && upgrade.toLowerCase().equals("websocket");
     }
 
 
