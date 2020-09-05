@@ -16,6 +16,12 @@
 
 package io.mantisrx.api;
 
+import com.netflix.discovery.guice.EurekaModule;
+import com.netflix.zuul.*;
+import com.netflix.zuul.filters.FilterRegistry;
+import com.netflix.zuul.filters.MutableFilterRegistry;
+import com.netflix.zuul.groovy.GroovyCompiler;
+import com.netflix.zuul.groovy.GroovyFileFilter;
 import io.mantisrx.shaded.com.fasterxml.jackson.databind.DeserializationFeature;
 import io.mantisrx.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
@@ -30,9 +36,6 @@ import com.netflix.netty.common.status.ServerStatusManager;
 import com.netflix.spectator.api.DefaultRegistry;
 import com.netflix.spectator.api.Registry;
 import com.netflix.spectator.api.patterns.ThreadPoolMonitor;
-import com.netflix.zuul.BasicRequestCompleteHandler;
-import com.netflix.zuul.FilterFileManager;
-import com.netflix.zuul.RequestCompleteHandler;
 import com.netflix.zuul.context.SessionContextDecorator;
 import com.netflix.zuul.context.ZuulSessionContextDecorator;
 import com.netflix.zuul.init.ZuulFiltersModule;
@@ -53,6 +56,7 @@ import org.apache.commons.configuration.AbstractConfiguration;
 import rx.Scheduler;
 import rx.schedulers.Schedulers;
 
+import java.io.FilenameFilter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -69,7 +73,12 @@ public class MantisAPIModule extends AbstractModule {
         bind(OriginManager.class).to(BasicNettyOriginManager.class);
 
         // zuul filter loading
+        bind(DynamicCodeCompiler.class).to(GroovyCompiler.class);
+        bind(FilenameFilter.class).to(GroovyFileFilter.class);
+        install(new EurekaModule());
         install(new ZuulFiltersModule());
+        bind(FilterLoader.class).to(DynamicFilterLoader.class);
+        bind(FilterRegistry.class).to(MutableFilterRegistry.class);
         bind(FilterFileManager.class).asEagerSingleton();
 
         // general server bindings
@@ -77,7 +86,6 @@ public class MantisAPIModule extends AbstractModule {
         bind(SessionContextDecorator.class).to(ZuulSessionContextDecorator.class); // decorate new sessions when requests come in
         bind(Registry.class).to(DefaultRegistry.class); // atlas metrics registry
         bind(RequestCompleteHandler.class).to(BasicRequestCompleteHandler.class); // metrics post-request completion
-        bind(AbstractDiscoveryClientOptionalArgs.class).to(DiscoveryClient.DiscoveryClientOptionalArgs.class); // discovery client
         bind(RequestMetricsPublisher.class).to(BasicRequestMetricsPublisher.class); // timings publisher
 
         // access logger, including request ID generator
