@@ -77,15 +77,15 @@ tasks.withType(Javadoc).all {
 
 
 dependencies {
-    api('com.netflix.zuul:zuul-core:latest.release') {
+    api('com.netflix.zuul:zuul-core:2.+') {
         exclude group: 'com.google.guava', module: 'guava'
         exclude group: 'com.google.inject', module: 'guice'
     }
-    api('com.netflix.zuul:zuul-guice:latest.release') {
+    api('com.netflix.zuul:zuul-guice:2.+') {
         exclude group: 'com.google.guava', module: 'guava'
         exclude group: 'com.google.inject', module: 'guice'
     }
-    implementation('com.netflix.zuul:zuul-groovy:latest.release') {
+    implementation('com.netflix.zuul:zuul-groovy:2.+') {
         exclude group: 'com.google.guava', module: 'guava'
         exclude group: 'com.google.inject', module: 'guice'
     }
@@ -105,6 +105,7 @@ dependencies {
     testImplementation"org.projectlombok:lombok:$lombokVersion"
     testAnnotationProcessor "org.projectlombok:lombok:$lombokVersion"
 }
+
 
 configurations.all {
     resolutionStrategy {
