@@ -268,7 +268,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
         log.info("Initiating remote SSE connection to {} in {}.", uri, regions);
         PushConnectionDetails pcd = PushConnectionDetails.from(uri, regions);
 
-        String[] tags = Util.getTaglist(request.uri(), getRegion(request.uri()));
+        String[] tags = Util.getTaglist(request.uri(), pcd.target, getRegion(request.uri()));
 
         Counter numDroppedBytesCounter = SpectatorUtils.newCounter(Constants.numDroppedBytesCounterName, pcd.target, tags);
         Counter numDroppedMessagesCounter = SpectatorUtils.newCounter(Constants.numDroppedMessagesCounterName, pcd.target, tags);
