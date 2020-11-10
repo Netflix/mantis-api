@@ -17,6 +17,7 @@ public class Constants {
     public static final String TunnelPingParamName = "MantisApiTunnelPingEnabled";
 
     public static final String OriginRegionTagName = "originRegion";
+    public static final String ClientIdTagName = "clientId";
     public static final String TagsParamName = "MantisApiTag";
     public static final String TagNameValDelimiter = ":";
 

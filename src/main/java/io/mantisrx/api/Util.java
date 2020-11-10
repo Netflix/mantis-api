@@ -27,8 +27,7 @@ import rx.functions.Func1;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import static io.mantisrx.api.Constants.TagNameValDelimiter;
-import static io.mantisrx.api.Constants.TagsParamName;
+import static io.mantisrx.api.Constants.*;
 
 @UtilityClass
 @Slf4j
@@ -63,10 +62,11 @@ public class Util {
     public static String[] getTaglist(String uri, String id, String region) {
         QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri);
         Map<String, List<String>> queryParameters = queryStringDecoder.parameters();
+        boolean isClientIdSet = false;
 
         final List<String> tags = new LinkedList<>();
         if (queryParameters != null) {
-            final List<String> tagVals = queryParameters.get(TagsParamName);
+            List<String> tagVals = queryParameters.get(TagsParamName);
             if (tagVals != null) {
                 for (String s : tagVals) {
                     StringTokenizer tokenizer = new StringTokenizer(s, TagNameValDelimiter);
@@ -76,9 +76,17 @@ public class Util {
                         if (s1 != null && !s1.isEmpty() && s2 != null && !s2.isEmpty()) {
                             tags.add(s1);
                             tags.add(s2);
+                            if (ClientIdTagName.equals(s1)) {
+                                isClientIdSet = true;
+                            }
                         }
                     }
                 }
+            }
+            tagVals = queryParameters.get(ClientIdTagName);
+            if (!isClientIdSet && tagVals != null && !tagVals.isEmpty()) {
+                tags.add(ClientIdTagName);
+                tags.add(tagVals.get(0));
             }
         }
 
