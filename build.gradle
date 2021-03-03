@@ -23,7 +23,7 @@ buildscript {
     }
     
     dependencies {
-        classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:5.1.1'
+        classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:9.1.0'
     }
 }
 
@@ -32,16 +32,6 @@ apply plugin: 'idea'
 apply plugin: 'java-library'
 apply plugin: 'pmd'
 apply plugin: 'application'
-
-bintray {
-    pkg {
-        version {
-            mavenCentralSync {
-                sync = false
-            }
-        }
-    }
-}
 
 ext {
     archaiusVersion = '2.3.+'
@@ -92,10 +82,12 @@ dependencies {
     implementation 'com.netflix.blitz4j:blitz4j:1.37.2'
     implementation "com.netflix.governator:governator:1.+"
     implementation "org.apache.commons:commons-lang3:3.+"
+    implementation "commons-configuration:commons-configuration:1.8"
     api "io.mantisrx:mantis-discovery-proto:$mantisDiscoveryProtoVersion"
     api "io.mantisrx:mantis-client:$mantisClientVersion"
     api "io.mantisrx:mantis-runtime:$mantisClientVersion"
     api "io.mantisrx:mantis-control-plane-client:$mantisClientVersion"
+    api "io.mantisrx:mantis-server-worker-client:$mantisClientVersion"
     api "io.mantisrx:mql-jvm:3.+"
     api "io.vavr:vavr:$vavrVersion"
     api "com.google.inject:guice:$guiceVersion"
@@ -137,4 +129,8 @@ run {
         println 'Running benchmark configuration...'
         jvmArgs "-Darchaius.deployment.environment=benchmark"
     }
+}
+
+pmd {
+    ignoreFailures = true
 }
