@@ -50,7 +50,7 @@ public class Bootstrap {
             long startupDuration = System.currentTimeMillis() - startTime;
             System.out.println("Mantis API: finished startup. Duration = " + startupDuration + " ms");
 
-            server.start(true);
+            server.start();
         }
         catch (Throwable t) {
             t.printStackTrace();

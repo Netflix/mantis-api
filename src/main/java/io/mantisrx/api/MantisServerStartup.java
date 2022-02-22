@@ -33,6 +33,8 @@ import com.netflix.zuul.RequestCompleteHandler;
 import com.netflix.zuul.context.SessionContextDecorator;
 import com.netflix.zuul.netty.server.BaseServerStartup;
 import com.netflix.zuul.netty.server.DirectMemoryMonitor;
+import com.netflix.zuul.netty.server.NamedSocketAddress;
+
 import io.mantisrx.api.initializers.MantisApiServerChannelInitializer;
 import io.mantisrx.api.push.ConnectionBroker;
 import io.mantisrx.api.tunnel.MantisCrossRegionalClient;
@@ -97,12 +99,12 @@ public class MantisServerStartup extends BaseServerStartup {
     }
 
     @Override
-    protected Map<SocketAddress, ChannelInitializer<?>> chooseAddrsAndChannels(ChannelGroup clientChannels) {
-        Map<SocketAddress, ChannelInitializer<?>> addrsToChannels = new HashMap<>();
+    protected Map<NamedSocketAddress, ChannelInitializer<?>> chooseAddrsAndChannels(ChannelGroup clientChannels) {
+        Map<NamedSocketAddress, ChannelInitializer<?>> addrsToChannels = new HashMap<>();
 
         String mainPortName = "main";
         int port = new DynamicIntProperty("zuul.server.port.main", 7001).get();
-        SocketAddress sockAddr = new InetSocketAddress(port);
+        NamedSocketAddress sockAddr = new NamedSocketAddress(mainPortName, new InetSocketAddress(port));
 
         ChannelConfig channelConfig = defaultChannelConfig(mainPortName);
         ChannelConfig channelDependencies = defaultChannelDependencies(mainPortName);
