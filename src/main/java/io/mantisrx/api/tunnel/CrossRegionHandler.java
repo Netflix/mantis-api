@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.netflix.config.DynamicIntProperty;
+import com.netflix.config.DynamicStringProperty;
 import com.netflix.spectator.api.Counter;
 import com.netflix.zuul.netty.SpectatorUtils;
 
@@ -87,6 +88,11 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private Subscription subscription = null;
     private final DynamicIntProperty queueCapacity = new DynamicIntProperty("io.mantisrx.api.push.queueCapacity", 1000);
     private final DynamicIntProperty writeIntervalMillis = new DynamicIntProperty("io.mantisrx.api.push.writeIntervalMillis", 50);
+	private final DynamicStringProperty tunnelRegionsProperty = new DynamicStringProperty("io.mantisrx.api.tunnel.regions", "");
+
+	private List<String> getTunnelRegions() {
+		return Arrays.asList(tunnelRegionsProperty.get().split(","));
+	}
 
     public CrossRegionHandler(
             List<String> pushPrefixes,
@@ -147,7 +153,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
     private void handleRestGet(ChannelHandlerContext ctx, FullHttpRequest request) {
         List<String> regions = getRegion(request.uri()).equals("all")
-                ? Arrays.asList("us-east-1", "us-west-2", "eu-west-1")
+                ? getTunnelRegions()
                 : Collections.singletonList(getRegion(request.uri()));
 
         String uri = getTail(request.uri());
