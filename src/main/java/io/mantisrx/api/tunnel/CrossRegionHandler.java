@@ -382,9 +382,16 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
         return uri.replaceFirst("^/region/.*?/", "/");
     }
 
+    /**
+     * Fetches a region from a URI if it contains one, returns garbage if not.
+     *
+     * @param uri The uri from which to fetch the region.
+     * @return The region embedded in the URI, always lower case.
+     * */
     private static String getRegion(String uri) {
         return uri.replaceFirst("^/region/", "")
-                .replaceFirst("/.*$", "");
+                .replaceFirst("/.*$", "")
+                .toLowerCase();
     }
 
     private static String responseToString(List<RegionData> dataList) {
