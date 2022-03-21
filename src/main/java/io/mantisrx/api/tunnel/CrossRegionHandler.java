@@ -88,7 +88,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private Subscription subscription = null;
     private final DynamicIntProperty queueCapacity = new DynamicIntProperty("io.mantisrx.api.push.queueCapacity", 1000);
     private final DynamicIntProperty writeIntervalMillis = new DynamicIntProperty("io.mantisrx.api.push.writeIntervalMillis", 50);
-	private final DynamicStringProperty tunnelRegionsProperty = new DynamicStringProperty("io.mantisrx.api.tunnel.regions", "");
+	private final DynamicStringProperty tunnelRegionsProperty = new DynamicStringProperty("io.mantisrx.api.tunnel.regions", Util.getLocalRegion());
 
 	private List<String> getTunnelRegions() {
 		return Arrays.asList(tunnelRegionsProperty.get().split(","));
@@ -204,7 +204,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private void handleRestPost(ChannelHandlerContext ctx, FullHttpRequest request) {
         String uri = getTail(request.uri());
         List<String> regions = getRegion(request.uri()).equals("all")
-                ? Arrays.asList("us-east-1", "us-west-2", "eu-west-1")
+                ? getTunnelRegions()
                 : Collections.singletonList(getRegion(request.uri()));
 
         log.info("Relaying POST URI {} to {}.", uri, regions);
@@ -268,7 +268,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
         final boolean sendThroughTunnelPings = hasTunnelPingParam(request.uri());
         final String uri = uriWithTunnelParamsAdded(getTail(request.uri()));
         List<String> regions = getRegion(request.uri()).equals("all")
-                ? Arrays.asList("us-east-1", "us-west-2", "eu-west-1")
+                ? getTunnelRegions()
                 : Collections.singletonList(getRegion(request.uri()));
 
         log.info("Initiating remote SSE connection to {} in {}.", uri, regions);

@@ -32,7 +32,7 @@ import static io.mantisrx.api.Constants.*;
 @UtilityClass
 @Slf4j
 public class Util {
-    private static final int defaultNumRetries = 5;
+    private static final int defaultNumRetries = 2;
 
     public static boolean startsWithAnyOf(final String target, List<String> prefixes) {
         for (String prefix : prefixes) {
