@@ -35,6 +35,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import com.netflix.config.DynamicIntProperty;
 import com.netflix.config.DynamicStringProperty;
@@ -91,7 +92,11 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
 	private final DynamicStringProperty tunnelRegionsProperty = new DynamicStringProperty("io.mantisrx.api.tunnel.regions", Util.getLocalRegion());
 
 	private List<String> getTunnelRegions() {
-		return Arrays.asList(tunnelRegionsProperty.get().split(","));
+		return Arrays.asList(tunnelRegionsProperty.get().split(","))
+            .stream()
+            .map(String::trim)
+            .map(String::toLowerCase)
+            .collect(Collectors.toList());
 	}
 
     public CrossRegionHandler(
@@ -152,7 +157,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     }
 
     private void handleRestGet(ChannelHandlerContext ctx, FullHttpRequest request) {
-        List<String> regions = getRegion(request.uri()).equals("all")
+        List<String> regions = Util.isAllRegion(getRegion(request.uri()))
                 ? getTunnelRegions()
                 : Collections.singletonList(getRegion(request.uri()));
 
@@ -203,7 +208,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
     private void handleRestPost(ChannelHandlerContext ctx, FullHttpRequest request) {
         String uri = getTail(request.uri());
-        List<String> regions = getRegion(request.uri()).equals("all")
+        List<String> regions = Util.isAllRegion(getRegion(request.uri()))
                 ? getTunnelRegions()
                 : Collections.singletonList(getRegion(request.uri()));
 
@@ -267,7 +272,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
         final boolean sendThroughTunnelPings = hasTunnelPingParam(request.uri());
         final String uri = uriWithTunnelParamsAdded(getTail(request.uri()));
-        List<String> regions = getRegion(request.uri()).equals("all")
+        List<String> regions = Util.isAllRegion(getRegion(request.uri()))
                 ? getTunnelRegions()
                 : Collections.singletonList(getRegion(request.uri()));
 
@@ -391,6 +396,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private static String getRegion(String uri) {
         return uri.replaceFirst("^/region/", "")
                 .replaceFirst("/.*$", "")
+                .trim()
                 .toLowerCase();
     }
 
