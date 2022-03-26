@@ -35,6 +35,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import com.netflix.config.DynamicIntProperty;
 import com.netflix.config.DynamicStringProperty;
@@ -88,10 +89,14 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private Subscription subscription = null;
     private final DynamicIntProperty queueCapacity = new DynamicIntProperty("io.mantisrx.api.push.queueCapacity", 1000);
     private final DynamicIntProperty writeIntervalMillis = new DynamicIntProperty("io.mantisrx.api.push.writeIntervalMillis", 50);
-	private final DynamicStringProperty tunnelRegionsProperty = new DynamicStringProperty("io.mantisrx.api.tunnel.regions", "");
+	private final DynamicStringProperty tunnelRegionsProperty = new DynamicStringProperty("io.mantisrx.api.tunnel.regions", Util.getLocalRegion());
 
 	private List<String> getTunnelRegions() {
-		return Arrays.asList(tunnelRegionsProperty.get().split(","));
+		return Arrays.asList(tunnelRegionsProperty.get().split(","))
+            .stream()
+            .map(String::trim)
+            .map(String::toLowerCase)
+            .collect(Collectors.toList());
 	}
 
     public CrossRegionHandler(
@@ -152,7 +157,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     }
 
     private void handleRestGet(ChannelHandlerContext ctx, FullHttpRequest request) {
-        List<String> regions = getRegion(request.uri()).equals("all")
+        List<String> regions = Util.isAllRegion(getRegion(request.uri()))
                 ? getTunnelRegions()
                 : Collections.singletonList(getRegion(request.uri()));
 
@@ -203,8 +208,8 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
     private void handleRestPost(ChannelHandlerContext ctx, FullHttpRequest request) {
         String uri = getTail(request.uri());
-        List<String> regions = getRegion(request.uri()).equals("all")
-                ? Arrays.asList("us-east-1", "us-west-2", "eu-west-1")
+        List<String> regions = Util.isAllRegion(getRegion(request.uri()))
+                ? getTunnelRegions()
                 : Collections.singletonList(getRegion(request.uri()));
 
         log.info("Relaying POST URI {} to {}.", uri, regions);
@@ -267,8 +272,8 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
         final boolean sendThroughTunnelPings = hasTunnelPingParam(request.uri());
         final String uri = uriWithTunnelParamsAdded(getTail(request.uri()));
-        List<String> regions = getRegion(request.uri()).equals("all")
-                ? Arrays.asList("us-east-1", "us-west-2", "eu-west-1")
+        List<String> regions = Util.isAllRegion(getRegion(request.uri()))
+                ? getTunnelRegions()
                 : Collections.singletonList(getRegion(request.uri()));
 
         log.info("Initiating remote SSE connection to {} in {}.", uri, regions);
@@ -382,9 +387,17 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
         return uri.replaceFirst("^/region/.*?/", "/");
     }
 
+    /**
+     * Fetches a region from a URI if it contains one, returns garbage if not.
+     *
+     * @param uri The uri from which to fetch the region.
+     * @return The region embedded in the URI, always lower case.
+     * */
     private static String getRegion(String uri) {
         return uri.replaceFirst("^/region/", "")
-                .replaceFirst("/.*$", "");
+                .replaceFirst("/.*$", "")
+                .trim()
+                .toLowerCase();
     }
 
     private static String responseToString(List<RegionData> dataList) {
