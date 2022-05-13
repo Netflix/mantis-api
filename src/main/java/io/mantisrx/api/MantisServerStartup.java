@@ -18,6 +18,7 @@ package io.mantisrx.api;
 
 import com.google.inject.name.Named;
 import com.netflix.appinfo.ApplicationInfoManager;
+import com.netflix.archaius.api.PropertyRepository;
 import com.netflix.config.DynamicIntProperty;
 import com.netflix.discovery.EurekaClient;
 import com.netflix.netty.common.accesslog.AccessLogPublisher;
@@ -73,6 +74,7 @@ public class MantisServerStartup extends BaseServerStartup {
                                MantisClient mantisClient,
                                MantisCrossRegionalClient mantisCrossRegionalClient,
                                ConnectionBroker connectionBroker,
+                               PropertyRepository propertyRepository,
                                @Named("io-scheduler") Scheduler scheduler,
                                @Named("push-prefixes") List<String> pushPrefixes
                                ) {

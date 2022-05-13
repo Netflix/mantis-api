@@ -18,12 +18,14 @@ buildscript {
     repositories {
         mavenCentral()
         maven {
-            url "https://plugins.gradle.org/m2/"
+            url 'https://plugins.gradle.org/m2/'
         }
     }
     
     dependencies {
         classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:9.1.0'
+        classpath 'org.springframework.boot:spring-boot-gradle-plugin:2.6.7'
+        classpath 'io.spring.gradle:dependency-management-plugin:1.0.11.RELEASE'
     }
 }
 
@@ -32,9 +34,11 @@ apply plugin: 'idea'
 apply plugin: 'java-library'
 apply plugin: 'pmd'
 apply plugin: 'application'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
 
 ext {
-    archaiusVersion = '2.3.+'
+    archaiusVersion = 'latest.release'
     assetjCoreVersion = '3.11.1'
     guavaVersion = '19.+'
     gsonVersion = '2.8.+'
@@ -65,7 +69,6 @@ tasks.withType(Javadoc).all {
     enabled = false
 }
 
-
 dependencies {
     api('com.netflix.zuul:zuul-core:2.+') {
         exclude group: 'com.google.guava', module: 'guava'
@@ -79,7 +82,8 @@ dependencies {
         exclude group: 'com.google.guava', module: 'guava'
         exclude group: 'com.google.inject', module: 'guice'
     }
-    implementation 'com.netflix.blitz4j:blitz4j:1.37.2'
+    implementation 'org.springframework.boot:spring-boot-starter'
+    api "com.netflix.archaius:archaius2-api:$archaiusVersion"
     implementation "com.netflix.governator:governator:1.+"
     implementation "org.apache.commons:commons-lang3:3.+"
     implementation "commons-configuration:commons-configuration:1.8"
