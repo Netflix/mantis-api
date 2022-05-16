@@ -16,8 +16,6 @@
 package io.mantisrx.api.services;
 
 import io.mantisrx.shaded.com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.inject.Inject;
-import com.google.inject.name.Named;
 import com.netflix.config.DynamicStringProperty;
 import com.netflix.mantis.discovery.proto.AppJobClustersMap;
 import com.netflix.spectator.api.Counter;
@@ -52,9 +50,8 @@ public class AppStreamDiscoveryService {
 
     private final DynamicStringProperty appJobClustersProp = new DynamicStringProperty("mreAppJobClusterMap", "");
 
-    @Inject
     public AppStreamDiscoveryService(MantisClient mantisClient,
-                                     @Named("io-scheduler") Scheduler scheduler,
+                                     Scheduler scheduler,
                                      ObjectMapper objectMapper) {
         this.mantisClient = mantisClient;
         this.scheduler = scheduler;

@@ -40,6 +40,7 @@ apply plugin: 'io.spring.dependency-management'
 ext {
     archaiusVersion = 'latest.release'
     assetjCoreVersion = '3.11.1'
+    eurekaVersion = '1.10.17'
     guavaVersion = '19.+'
     gsonVersion = '2.8.+'
     guiceVersion = '4.1.0'
@@ -71,11 +72,7 @@ tasks.withType(Javadoc).all {
 
 dependencies {
     api('com.netflix.zuul:zuul-core:2.+') {
-        exclude group: 'com.google.guava', module: 'guava'
-        exclude group: 'com.google.inject', module: 'guice'
-    }
-    api('com.netflix.zuul:zuul-guice:2.+') {
-        exclude group: 'com.google.guava', module: 'guava'
+    //    exclude group: 'com.google.guava', module: 'guava'
         exclude group: 'com.google.inject', module: 'guice'
     }
     implementation('com.netflix.zuul:zuul-groovy:2.+') {
@@ -83,10 +80,11 @@ dependencies {
         exclude group: 'com.google.inject', module: 'guice'
     }
     implementation 'org.springframework.boot:spring-boot-starter'
-    api "com.netflix.archaius:archaius2-api:$archaiusVersion"
-    implementation "com.netflix.governator:governator:1.+"
+    implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client:latest.release'
+    implementation "org.springframework.cloud:spring-cloud-starter-netflix-archaius:latest.release"
     implementation "org.apache.commons:commons-lang3:3.+"
     implementation "commons-configuration:commons-configuration:1.8"
+    //implementation "com.google.guava:guava:31.1-jre"
     api "io.mantisrx:mantis-discovery-proto:$mantisDiscoveryProtoVersion"
     api "io.mantisrx:mantis-client:$mantisClientVersion"
     api "io.mantisrx:mantis-runtime:$mantisClientVersion"
@@ -94,9 +92,16 @@ dependencies {
     api "io.mantisrx:mantis-server-worker-client:$mantisClientVersion"
     api "io.mantisrx:mql-jvm:3.+"
     api "io.vavr:vavr:$vavrVersion"
-    api "com.google.inject:guice:$guiceVersion"
-    api "org.projectlombok:lombok:$lombokVersion"
+    implementation "org.projectlombok:lombok:$lombokVersion"
     annotationProcessor "org.projectlombok:lombok:$lombokVersion"
+
+
+    // To satisfy spring-cloud-starter-netflix-eureka-client injection.
+    // They apparently no longer use Jersey but for whatever reason
+    // this code base does try to load it. Adding these satisfies it.
+    // See: https://docs.spring.io/spring-cloud-netflix/docs/3.0.1-SNAPSHOT/reference/html/#eurekaclient-without-jersey
+    implementation 'com.sun.jersey:jersey-client:latest.release' // For EurekaClient
+    implementation 'com.sun.jersey.contribs:jersey-apache-client4:latest.release' // For EurekaClient
 
     testImplementation "junit:junit:$junitVersion"
     testImplementation"org.projectlombok:lombok:$lombokVersion"
@@ -107,10 +112,6 @@ dependencies {
 configurations.all {
     resolutionStrategy {
         force "com.google.guava:guava:$guavaVersion"
-        force "com.google.inject:guice:$guiceVersion"
-        force "com.google.inject.extensions:guice-multibindings:$guiceVersion"
-        force "com.google.inject.extensions:guice-grapher:$guiceVersion"
-        force "com.google.inject.extensions:guice-assistedinject:$guiceVersion"
         force "javax.servlet:javax.servlet-api:$servletApiVersion"
     }
 }
@@ -119,6 +120,7 @@ configurations.all {
  * Run regular:   ./gradlew run
  * Run benchmark: ./gradlew run -Pbench
  */
+/*
 run {
     mainClassName = "io.mantisrx.api.Bootstrap"
 
@@ -134,6 +136,7 @@ run {
         jvmArgs "-Darchaius.deployment.environment=benchmark"
     }
 }
+*/
 
 pmd {
     ignoreFailures = true

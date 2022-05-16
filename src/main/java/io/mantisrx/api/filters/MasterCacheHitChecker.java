@@ -1,7 +1,5 @@
 package io.mantisrx.api.filters;
 
-import com.google.inject.Inject;
-import com.google.inject.name.Named;
 import com.netflix.config.DynamicBooleanProperty;
 import com.netflix.spectator.api.Counter;
 import com.netflix.zuul.filters.http.HttpInboundSyncFilter;
@@ -27,8 +25,7 @@ public class MasterCacheHitChecker extends HttpInboundSyncFilter {
     private static final String CACHE_HIT_COUNTER_NAME = "mantis.api.cache.count";
     private final List<String> pushPrefixes;
 
-    @Inject
-    public MasterCacheHitChecker(@Named("push-prefixes") List<String> pushPrefixes) {
+    public MasterCacheHitChecker(List<String> pushPrefixes) {
         super();
         this.pushPrefixes = pushPrefixes;
     }

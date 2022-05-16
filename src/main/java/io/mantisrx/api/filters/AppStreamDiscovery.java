@@ -16,7 +16,6 @@
 package io.mantisrx.api.filters;
 
 import io.mantisrx.shaded.com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.inject.Inject;
 import com.netflix.zuul.filters.http.HttpSyncEndpoint;
 import com.netflix.zuul.message.http.HttpHeaderNames;
 import com.netflix.zuul.message.http.HttpRequestMessage;
@@ -41,7 +40,6 @@ public class AppStreamDiscovery extends HttpSyncEndpoint {
     private final ObjectMapper objectMapper;
     private static final String APPNAME_QUERY_PARAM = "app";
 
-    @Inject
     public AppStreamDiscovery(AppStreamDiscoveryService appStreamDiscoveryService,
                               ObjectMapper objectMapper) {
         this.appStreamDiscoveryService = appStreamDiscoveryService;

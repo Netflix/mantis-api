@@ -16,24 +16,28 @@
 
 package io.mantisrx.api;
 
-import com.google.inject.Injector;
-import com.netflix.config.ConfigurationManager;
-import com.netflix.governator.InjectorBuilder;
-import com.netflix.zuul.netty.server.BaseServerStartup;
+import javax.annotation.PostConstruct;
+
 import com.netflix.zuul.netty.server.Server;
 
-/**
- * Bootstrap
- *
- * Author: Arthur Gonigberg
- * Date: November 20, 2017
- */
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.stereotype.Component;
+
+@SpringBootApplication
+@Component
 public class Bootstrap {
 
     public static void main(String[] args) {
-        new Bootstrap().start();
+        SpringApplication.run(Bootstrap.class, args);
     }
 
+    @Autowired
+    private MantisServerStartup mantisServerStartup;
+
+    @Bean
     public void start() {
         System.out.println("Mantis API: starting up.");
         long startTime = System.currentTimeMillis();
@@ -42,10 +46,7 @@ public class Bootstrap {
         Server server = null;
 
         try {
-            ConfigurationManager.loadCascadedPropertiesFromResources("application");
-            Injector injector = InjectorBuilder.fromModule(new MantisAPIModule()).createInjector();
-            BaseServerStartup serverStartup = injector.getInstance(BaseServerStartup.class);
-            server = serverStartup.server();
+            server = mantisServerStartup.server();
 
             long startupDuration = System.currentTimeMillis() - startTime;
             System.out.println("Mantis API: finished startup. Duration = " + startupDuration + " ms");

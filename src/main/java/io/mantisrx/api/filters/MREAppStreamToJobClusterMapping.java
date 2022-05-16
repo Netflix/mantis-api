@@ -16,7 +16,6 @@
 package io.mantisrx.api.filters;
 
 import io.mantisrx.shaded.com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.inject.Inject;
 import com.netflix.mantis.discovery.proto.AppJobClustersMap;
 import com.netflix.zuul.filters.http.HttpSyncEndpoint;
 import com.netflix.zuul.message.http.HttpHeaderNames;
@@ -37,7 +36,6 @@ public class MREAppStreamToJobClusterMapping extends HttpSyncEndpoint {
     private static final String APPNAME_QUERY_PARAM = "app";
     public static final String PATH_SPEC = "/api/v1/mantis/publish/streamJobClusterMap";
 
-    @Inject
     public MREAppStreamToJobClusterMapping(AppStreamDiscoveryService appStreamDiscoveryService,
                                            ObjectMapper objectMapper) {
         this.appStreamDiscoveryService = appStreamDiscoveryService;

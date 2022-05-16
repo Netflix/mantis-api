@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: "mantisapi"
+
+region: us-east-1
+environment: test
+
+eureka:
+  name: "mantisapi"
+  vipAddress: "${eureka.name}:${eureka.port}"
+  port: 7001
+  preferSameZone: false
+  shouldFetchRegistry: false
+  registration:
+    enabled: false
+
+# Loading Filters
+# Seems java filters can only be loaded via zuul.filters.packages
+zuul.filters.root: src/main/java/io/mantisrx/api/filters
+#zuul.filters.locations=${zuul.filters.root}/inbound,${zuul.filters.root}/outbound,${zuul.filters.root}/endpoint
+zuul.filters.packages: io.mantisrx.api.filters
+
+
+### Load balancing backends without Eureka
+api.ribbon.listOfServers: "100.65.103.212:7101"
+api.ribbon.client.NIWSServerListClassName: com.netflix.loadbalancer.ConfigurationBasedServerList
+api.ribbon.DeploymentContextBasedVipAddresses: "mantismasterv2.netflix.net:7001"
+
+mantis.zookeeper.root: "/mantis/master"
+mantis.zookeeper.connectString: "100.67.80.172:2181,100.67.71.221:2181,100.67.89.26:2181,100.67.71.34:2181,100.67.80.18:2181"
+mantis.zookeeper.leader.announcement.path: "/leader"
+default.nfzookeeper.session-timeout-ms: 120000
+
+mreAppJobClusterMap: '{"version":"1","timestamp":18,"mappings":{"__default__":{"elasticarEventStream":"ElasticarEventSource","__default__":"SharedMrePublishEventSource"},"edgarwatchlist":{"__default__":"EdgarWatchListEventSource"}}}'
+
+mantisapi.cache.enabled: true

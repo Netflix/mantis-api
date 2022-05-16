@@ -14,7 +14,6 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vavr.control.Try;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.inject.Inject;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,7 +29,6 @@ public class Artifacts extends HttpSyncEndpoint {
         return input.getMethod().toLowerCase().equals("post");
     }
 
-    @Inject
     public Artifacts(ArtifactManager artifactManager, ObjectMapper objectMapper) {
         this.artifactManager = artifactManager;
         this.objectMapper = objectMapper;

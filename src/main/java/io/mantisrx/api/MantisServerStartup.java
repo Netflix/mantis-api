@@ -16,11 +16,13 @@
 
 package io.mantisrx.api;
 
-import com.google.inject.name.Named;
+import java.net.InetSocketAddress;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import com.netflix.appinfo.ApplicationInfoManager;
-import com.netflix.archaius.api.PropertyRepository;
-import com.netflix.config.DynamicIntProperty;
-import com.netflix.discovery.EurekaClient;
 import com.netflix.netty.common.accesslog.AccessLogPublisher;
 import com.netflix.netty.common.channel.config.ChannelConfig;
 import com.netflix.netty.common.channel.config.CommonChannelConfigKeys;
@@ -36,6 +38,12 @@ import com.netflix.zuul.netty.server.BaseServerStartup;
 import com.netflix.zuul.netty.server.DirectMemoryMonitor;
 import com.netflix.zuul.netty.server.NamedSocketAddress;
 
+import org.apache.commons.configuration.AbstractConfiguration;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Component;
+
 import io.mantisrx.api.initializers.MantisApiServerChannelInitializer;
 import io.mantisrx.api.push.ConnectionBroker;
 import io.mantisrx.api.tunnel.MantisCrossRegionalClient;
@@ -43,16 +51,9 @@ import io.mantisrx.client.MantisClient;
 import io.mantisrx.server.master.client.MasterClientWrapper;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.group.ChannelGroup;
-import org.apache.commons.configuration.AbstractConfiguration;
 import rx.Scheduler;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.util.*;
-
-@Singleton
+@Component
 public class MantisServerStartup extends BaseServerStartup {
 
     private final MantisClient mantisClient;
@@ -61,25 +62,27 @@ public class MantisServerStartup extends BaseServerStartup {
     private final ConnectionBroker connectionBroker;
     private final Scheduler scheduler;
     private final List<String> pushPrefixes;
+    private final Environment env;
 
-    @Inject
+    @Autowired
     public MantisServerStartup(ServerStatusManager serverStatusManager, FilterLoader filterLoader,
                                SessionContextDecorator sessionCtxDecorator, FilterUsageNotifier usageNotifier,
                                RequestCompleteHandler reqCompleteHandler, Registry registry,
                                DirectMemoryMonitor directMemoryMonitor, EventLoopGroupMetrics eventLoopGroupMetrics,
-                               EurekaClient discoveryClient, ApplicationInfoManager applicationInfoManager,
+                               //EurekaClient discoveryClient,
+                               ApplicationInfoManager applicationInfoManager,
                                AccessLogPublisher accessLogPublisher,
                                AbstractConfiguration configurationManager,
                                MasterClientWrapper masterClientWrapper,
                                MantisClient mantisClient,
                                MantisCrossRegionalClient mantisCrossRegionalClient,
                                ConnectionBroker connectionBroker,
-                               PropertyRepository propertyRepository,
-                               @Named("io-scheduler") Scheduler scheduler,
-                               @Named("push-prefixes") List<String> pushPrefixes
+                               Environment env,
+                               Scheduler scheduler,
+                               List<String> pushPrefixes
                                ) {
         super(serverStatusManager, filterLoader, sessionCtxDecorator, usageNotifier, reqCompleteHandler, registry,
-                directMemoryMonitor, eventLoopGroupMetrics, discoveryClient, applicationInfoManager,
+                directMemoryMonitor, eventLoopGroupMetrics, null, applicationInfoManager,
                 accessLogPublisher);
         this.mantisClient = mantisClient;
         this.masterClientWrapper = masterClientWrapper;
@@ -87,6 +90,7 @@ public class MantisServerStartup extends BaseServerStartup {
         this.connectionBroker = connectionBroker;
         this.scheduler = scheduler;
         this.pushPrefixes = pushPrefixes;
+        this.env = env;
 
         // Mantis Master Listener
         masterClientWrapper
@@ -105,7 +109,7 @@ public class MantisServerStartup extends BaseServerStartup {
         Map<NamedSocketAddress, ChannelInitializer<?>> addrsToChannels = new HashMap<>();
 
         String mainPortName = "main";
-        int port = new DynamicIntProperty("zuul.server.port.main", 7001).get();
+        int port = env.getProperty("zuul.server.port.main", Integer.class, 7001);
         NamedSocketAddress sockAddr = new NamedSocketAddress(mainPortName, new InetSocketAddress(port));
 
         ChannelConfig channelConfig = defaultChannelConfig(mainPortName);

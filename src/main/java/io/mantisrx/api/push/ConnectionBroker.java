@@ -1,11 +1,12 @@
 package io.mantisrx.api.push;
 
 import io.mantisrx.shaded.com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-import com.google.inject.name.Named;
 import com.netflix.spectator.api.Counter;
 import com.netflix.zuul.netty.SpectatorUtils;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
 import io.mantisrx.api.Constants;
 import io.mantisrx.api.Util;
 import io.mantisrx.api.services.JobDiscoveryService;
@@ -39,8 +40,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static io.mantisrx.api.Constants.TunnelPingMessage;
 import static io.mantisrx.api.Util.getLocalRegion;
 
+@Component
 @Slf4j
-@Singleton
 public class ConnectionBroker {
 
     private final MantisClient mantisClient;
@@ -52,11 +53,11 @@ public class ConnectionBroker {
 
     private final Map<PushConnectionDetails, Observable<String>> connectionCache = new WeakHashMap<>();
 
-    @Inject
+    @Autowired
     public ConnectionBroker(MantisClient mantisClient,
                             MantisCrossRegionalClient mantisCrossRegionalClient,
                             WorkerMetricsClient workerMetricsClient,
-                            @Named("io-scheduler") Scheduler scheduler,
+                            Scheduler scheduler,
                             ObjectMapper objectMapper) {
         this.mantisClient = mantisClient;
         this.mantisCrossRegionalClient = mantisCrossRegionalClient;

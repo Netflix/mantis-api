@@ -3,12 +3,10 @@ package io.mantisrx.api.filters;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheStats;
-import com.google.inject.Inject;
 import com.netflix.config.DynamicBooleanProperty;
 import com.netflix.config.DynamicIntProperty;
 import com.netflix.spectator.api.BasicTag;
 import com.netflix.spectator.api.Registry;
-import com.netflix.spectator.api.Spectator;
 import com.netflix.spectator.api.patterns.PolledMeter;
 import com.netflix.zuul.filters.http.HttpOutboundSyncFilter;
 import com.netflix.zuul.message.http.HttpResponseMessage;
@@ -34,7 +32,6 @@ public class MasterCacheLoader extends HttpOutboundSyncFilter {
             .expireAfterWrite(cacheDurationSeconds.get(), TimeUnit.SECONDS)
             .build();
 
-    @Inject
     public MasterCacheLoader(Registry registry) {
         CacheStats stats = masterCache.stats();
         PolledMeter.using(registry)
