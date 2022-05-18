@@ -51,6 +51,7 @@ public class Bootstrap {
             System.out.println("Mantis API: finished startup. Duration = " + startupDuration + " ms");
 
             server.start();
+            server.awaitTermination();
         }
         catch (Throwable t) {
             t.printStackTrace();
