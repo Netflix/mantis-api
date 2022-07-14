@@ -86,6 +86,8 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private final ConnectionBroker connectionBroker;
     private final Scheduler scheduler;
 
+    private static final Charset CHARSET = StandardCharsets.UTF_8;
+
     private Subscription subscription = null;
     private final DynamicIntProperty queueCapacity = new DynamicIntProperty("io.mantisrx.api.push.queueCapacity", 1000);
     private final DynamicIntProperty writeIntervalMillis = new DynamicIntProperty("io.mantisrx.api.push.writeIntervalMillis", 50);
@@ -149,7 +151,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
         HttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
                 HttpResponseStatus.OK,
-                Unpooled.copiedBuffer("", Charset.defaultCharset()),
+                Unpooled.copiedBuffer("", CHARSET),
                 headers,
                 new DefaultHttpHeaders());
         ctx.writeAndFlush(response)
@@ -215,7 +217,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
         log.info("Relaying POST URI {} to {}.", uri, regions);
         final AtomicReference<Throwable> ref = new AtomicReference<>();
 
-        String content = request.content().toString(Charset.defaultCharset());
+        String content = request.content().toString(CHARSET);
         Observable.from(regions)
                 .flatMap(region -> {
                     HttpClientRequest<String> rq = HttpClientRequest.create(HttpMethod.POST, uri);
@@ -307,7 +309,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                         final List<String> items = new ArrayList<>(queue.size());
                         queue.drainTo(items);
                         for (String data : items) {
-                          ctx.writeAndFlush(Unpooled.copiedBuffer(data, StandardCharsets.UTF_8));
+                          ctx.writeAndFlush(Unpooled.copiedBuffer(data, CHARSET));
                           numMessagesCounter.increment();
                           numBytesCounter.increment(data.length());
                         }
@@ -334,8 +336,8 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                 .collect(Unpooled::buffer,
                         ByteBuf::writeBytes)
                 .map(byteBuf -> new RegionData(region, true,
-                        byteBuf.toString(StandardCharsets.UTF_8), code)
-                )
+                        byteBuf.toString(CHARSET),
+                        code))
                 .onErrorReturn(t -> new RegionData(region, false, t.getMessage(), code));
     }
 
@@ -344,7 +346,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
             String serialized = responseToString(result);
             HttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
                     HttpResponseStatus.OK,
-                    Unpooled.copiedBuffer(serialized, Charset.defaultCharset()));
+                    Unpooled.copiedBuffer(serialized, CHARSET));
 
             HttpHeaders headers = response.headers();
             headers.add(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON + "; charset=utf-8");
