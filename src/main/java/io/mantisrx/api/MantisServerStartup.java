@@ -39,6 +39,7 @@ import io.mantisrx.api.initializers.MantisApiServerChannelInitializer;
 import io.mantisrx.api.push.ConnectionBroker;
 import io.mantisrx.api.tunnel.MantisCrossRegionalClient;
 import io.mantisrx.client.MantisClient;
+import io.mantisrx.server.master.client.HighAvailabilityServices;
 import io.mantisrx.server.master.client.MasterClientWrapper;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.group.ChannelGroup;
@@ -48,14 +49,12 @@ import rx.Scheduler;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.util.*;
 
 @Singleton
 public class MantisServerStartup extends BaseServerStartup {
 
-    private final MantisClient mantisClient;
-    private final MasterClientWrapper masterClientWrapper;
+    private final HighAvailabilityServices highAvailabilityServices;
     private final MantisCrossRegionalClient mantisCrossRegionalClient;
     private final ConnectionBroker connectionBroker;
     private final Scheduler scheduler;
@@ -69,8 +68,7 @@ public class MantisServerStartup extends BaseServerStartup {
                                EurekaClient discoveryClient, ApplicationInfoManager applicationInfoManager,
                                AccessLogPublisher accessLogPublisher,
                                AbstractConfiguration configurationManager,
-                               MasterClientWrapper masterClientWrapper,
-                               MantisClient mantisClient,
+                               HighAvailabilityServices highAvailabilityServices,
                                MantisCrossRegionalClient mantisCrossRegionalClient,
                                ConnectionBroker connectionBroker,
                                @Named("io-scheduler") Scheduler scheduler,
@@ -79,15 +77,14 @@ public class MantisServerStartup extends BaseServerStartup {
         super(serverStatusManager, filterLoader, sessionCtxDecorator, usageNotifier, reqCompleteHandler, registry,
                 directMemoryMonitor, eventLoopGroupMetrics, discoveryClient, applicationInfoManager,
                 accessLogPublisher);
-        this.mantisClient = mantisClient;
-        this.masterClientWrapper = masterClientWrapper;
+        this.highAvailabilityServices = highAvailabilityServices;
         this.mantisCrossRegionalClient = mantisCrossRegionalClient;
         this.connectionBroker = connectionBroker;
         this.scheduler = scheduler;
         this.pushPrefixes = pushPrefixes;
 
         // Mantis Master Listener
-        masterClientWrapper
+        highAvailabilityServices
                 .getMasterMonitor()
                 .getMasterObservable()
                 .filter(x -> x != null)
@@ -122,7 +119,7 @@ public class MantisServerStartup extends BaseServerStartup {
                 sockAddr,
                 new MantisApiServerChannelInitializer(
                         String.valueOf(port), channelConfig, channelDependencies, clientChannels, pushPrefixes,
-                        mantisClient, masterClientWrapper, mantisCrossRegionalClient, connectionBroker,
+                    highAvailabilityServices, mantisCrossRegionalClient, connectionBroker,
                         scheduler, false));
         logAddrConfigured(sockAddr);
 

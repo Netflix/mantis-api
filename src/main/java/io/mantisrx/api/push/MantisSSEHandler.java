@@ -6,6 +6,8 @@ import com.netflix.zuul.netty.SpectatorUtils;
 import io.mantisrx.api.Constants;
 import io.mantisrx.api.Util;
 import io.mantisrx.server.core.master.MasterDescription;
+import io.mantisrx.server.master.client.HighAvailabilityServices;
+import io.mantisrx.server.master.client.MantisMasterGateway;
 import io.mantisrx.server.master.client.MasterClientWrapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -38,17 +40,17 @@ import java.util.concurrent.TimeUnit;
 public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     private final ConnectionBroker connectionBroker;
-    private final MasterClientWrapper masterClientWrapper;
+    private final HighAvailabilityServices highAvailabilityServices;
     private final List<String> pushPrefixes;
     private Subscription subscription;
     private final DynamicIntProperty queueCapacity = new DynamicIntProperty("io.mantisrx.api.push.queueCapacity", 1000);
     private final DynamicIntProperty writeIntervalMillis = new DynamicIntProperty("io.mantisrx.api.push.writeIntervalMillis", 50);
 
-    public MantisSSEHandler(ConnectionBroker connectionBroker, MasterClientWrapper masterClientWrapper,
+    public MantisSSEHandler(ConnectionBroker connectionBroker, HighAvailabilityServices highAvailabilityServices,
                             List<String> pushPrefixes) {
         super(true);
         this.connectionBroker = connectionBroker;
-        this.masterClientWrapper = masterClientWrapper;
+        this.highAvailabilityServices = highAvailabilityServices;
         this.pushPrefixes = pushPrefixes;
     }
 
@@ -180,7 +182,7 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
         final String API_JOB_SUBMIT_PATH = "/api/submit";
 
         String content = request.content().toString(StandardCharsets.UTF_8);
-        return callPostOnMaster(masterClientWrapper.getMasterMonitor().getMasterObservable(), API_JOB_SUBMIT_PATH, content)
+        return callPostOnMaster(highAvailabilityServices.getMasterMonitor().getMasterObservable(), API_JOB_SUBMIT_PATH, content)
                 .retryWhen(Util.getRetryFunc(log, API_JOB_SUBMIT_PATH))
                 .flatMap(masterResponse -> masterResponse.getByteBuf()
                         .take(1)
