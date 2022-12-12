@@ -22,6 +22,10 @@ import com.netflix.zuul.filters.FilterRegistry;
 import com.netflix.zuul.filters.MutableFilterRegistry;
 import com.netflix.zuul.groovy.GroovyCompiler;
 import com.netflix.zuul.groovy.GroovyFileFilter;
+import io.mantisrx.server.core.Configurations;
+import io.mantisrx.server.core.CoreConfiguration;
+import io.mantisrx.server.master.client.HighAvailabilityServices;
+import io.mantisrx.server.master.client.HighAvailabilityServicesUtil;
 import io.mantisrx.shaded.com.fasterxml.jackson.databind.DeserializationFeature;
 import io.mantisrx.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
@@ -107,7 +111,9 @@ public class MantisAPIModule extends AbstractModule {
             props.put(key, configuration.getString(key));
         });
 
-        return new MasterClientWrapper(props);
+        HighAvailabilityServices haServices = HighAvailabilityServicesUtil.createHAServices(
+            Configurations.frmProperties(props, CoreConfiguration.class));
+        return new MasterClientWrapper(haServices.getMasterClientApi());
     }
 
     @Provides @Singleton MantisClient provideMantisClient(AbstractConfiguration configuration) {

@@ -20,14 +20,13 @@ import com.netflix.netty.common.channel.config.ChannelConfig;
 import com.netflix.netty.common.channel.config.CommonChannelConfigKeys;
 import com.netflix.zuul.netty.server.BaseZuulChannelInitializer;
 import com.netflix.zuul.netty.ssl.SslContextFactory;
+import io.mantisrx.api.Util;
 import io.mantisrx.api.push.ConnectionBroker;
 import io.mantisrx.api.push.MantisSSEHandler;
 import io.mantisrx.api.push.MantisWebSocketFrameHandler;
 import io.mantisrx.api.tunnel.CrossRegionHandler;
 import io.mantisrx.api.tunnel.MantisCrossRegionalClient;
-import io.mantisrx.api.Util;
-import io.mantisrx.client.MantisClient;
-import io.mantisrx.server.master.client.MasterClientWrapper;
+import io.mantisrx.server.master.client.HighAvailabilityServices;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -38,10 +37,9 @@ import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
-import rx.Scheduler;
-
-import javax.net.ssl.SSLException;
 import java.util.List;
+import javax.net.ssl.SSLException;
+import rx.Scheduler;
 
 
 public class MantisApiServerChannelInitializer extends BaseZuulChannelInitializer
@@ -51,7 +49,7 @@ public class MantisApiServerChannelInitializer extends BaseZuulChannelInitialize
     private final boolean isSSlFromIntermediary;
 
     private final ConnectionBroker connectionBroker;
-    private final MasterClientWrapper masterClientWrapper;
+    private final HighAvailabilityServices highAvailabilityServices;
     private final MantisCrossRegionalClient mantisCrossRegionalClient;
     private final Scheduler scheduler;
     private final List<String> pushPrefixes;
@@ -63,8 +61,7 @@ public class MantisApiServerChannelInitializer extends BaseZuulChannelInitialize
             ChannelConfig channelDependencies,
             ChannelGroup channels,
             List<String> pushPrefixes,
-            MantisClient mantisClient,
-            MasterClientWrapper masterClientWrapper,
+            HighAvailabilityServices highAvailabilityServices,
             MantisCrossRegionalClient mantisCrossRegionalClient,
             ConnectionBroker connectionBroker,
             Scheduler scheduler,
@@ -73,7 +70,7 @@ public class MantisApiServerChannelInitializer extends BaseZuulChannelInitialize
 
         this.pushPrefixes = pushPrefixes;
         this.connectionBroker = connectionBroker;
-        this.masterClientWrapper = masterClientWrapper;
+        this.highAvailabilityServices = highAvailabilityServices;
         this.mantisCrossRegionalClient = mantisCrossRegionalClient;
         this.scheduler = scheduler;
         this.sslEnabled = sslEnabled;
@@ -137,7 +134,7 @@ public class MantisApiServerChannelInitializer extends BaseZuulChannelInitialize
     protected void addPushHandlers(final ChannelPipeline pipeline, String url) {
         pipeline.addLast(new ChunkedWriteHandler());
         pipeline.addLast(new HttpObjectAggregator(64 * 1024));
-        pipeline.addLast(new MantisSSEHandler(connectionBroker, masterClientWrapper, pushPrefixes));
+        pipeline.addLast(new MantisSSEHandler(connectionBroker, highAvailabilityServices, pushPrefixes));
         pipeline.addLast(new WebSocketServerProtocolHandler(url, true));
         pipeline.addLast(new MantisWebSocketFrameHandler(connectionBroker));
     }
