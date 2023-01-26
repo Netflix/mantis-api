@@ -42,7 +42,7 @@ public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<Tex
             uri = complete.requestUri();
             final PushConnectionDetails pcd = PushConnectionDetails.from(uri);
 
-            log.info("Request to UIR '{}' is a WebSSocket upgrade, removing the SSE handler", uri);
+            log.info("Request to URI '{}' is a WebSSocket upgrade, removing the SSE handler", uri);
             if (ctx.pipeline().get(MantisSSEHandler.class) != null) {
                 ctx.pipeline().remove(MantisSSEHandler.class);
             }
@@ -85,21 +85,21 @@ public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<Tex
 
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-        log.info("Channel is unregistered: {}", ctx.channel());
+        log.info("Channel {} is unregistered. URI: {}", ctx.channel(), uri);
         unsubscribeIfSubscribed();
         super.channelUnregistered(ctx);
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        log.info("Channel is inactive: {}", ctx.channel());
+        log.info("Channel {} is inactive. URI: {}", ctx.channel(), uri);
         unsubscribeIfSubscribed();
         super.channelInactive(ctx);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        log.warn("Exception caught for channel {}", ctx.channel(), cause);
+        log.warn("Exception caught by channel {}. URI: {}", ctx.channel(), uri, cause);
         unsubscribeIfSubscribed();
         // This is the tail of handlers. We should close the channel between the server and the client,
         // essentially causing the client to disconnect and terminate.

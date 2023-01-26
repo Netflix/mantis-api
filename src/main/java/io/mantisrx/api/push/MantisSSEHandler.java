@@ -159,21 +159,21 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
 
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-        log.info("Channel is unregistered: {}", ctx.channel());
+        log.info("Channel {} is unregistered. URI: {}", ctx.channel(), uri);
         unsubscribeIfSubscribed();
         super.channelUnregistered(ctx);
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        log.info("Channel is inactive: {}", ctx.channel());
+        log.info("Channel {} is inactive. URI: {}", ctx.channel(), uri);
         unsubscribeIfSubscribed();
         super.channelInactive(ctx);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        log.warn("Exception caught for channel {}", ctx.channel(), cause);
+        log.warn("Exception caught by channel {}. URI: {}", ctx.channel(), uri, cause);
         unsubscribeIfSubscribed();
         ctx.close();
     }
