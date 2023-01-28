@@ -15,16 +15,16 @@
             "locked": "1.17.13-SNAPSHOT"
         },
         "com.netflix.zuul:zuul-core": {
-            "locked": "2.3.1-SNAPSHOT"
+            "locked": "2.3.0"
         },
         "com.netflix.zuul:zuul-groovy": {
-            "locked": "2.3.1-SNAPSHOT"
+            "locked": "2.3.0"
         },
         "com.netflix.zuul:zuul-guice": {
-            "locked": "2.3.1-SNAPSHOT"
+            "locked": "2.3.0"
         },
         "commons-configuration:commons-configuration": {
-            "locked": "1.10"
+            "locked": "1.8"
         },
         "io.mantisrx:mantis-client": {
             "locked": "2.0.1"
@@ -70,16 +70,16 @@
             "locked": "1.17.13-SNAPSHOT"
         },
         "com.netflix.zuul:zuul-core": {
-            "locked": "2.3.1-SNAPSHOT"
+            "locked": "2.3.0"
         },
         "com.netflix.zuul:zuul-groovy": {
-            "locked": "2.3.1-SNAPSHOT"
+            "locked": "2.3.0"
         },
         "com.netflix.zuul:zuul-guice": {
-            "locked": "2.3.1-SNAPSHOT"
+            "locked": "2.3.0"
         },
         "commons-configuration:commons-configuration": {
-            "locked": "1.10"
+            "locked": "1.8"
         },
         "io.mantisrx:mantis-client": {
             "locked": "2.0.1"
@@ -125,16 +125,16 @@
             "locked": "1.17.13-SNAPSHOT"
         },
         "com.netflix.zuul:zuul-core": {
-            "locked": "2.3.1-SNAPSHOT"
+            "locked": "2.3.0"
         },
         "com.netflix.zuul:zuul-groovy": {
-            "locked": "2.3.1-SNAPSHOT"
+            "locked": "2.3.0"
         },
         "com.netflix.zuul:zuul-guice": {
-            "locked": "2.3.1-SNAPSHOT"
+            "locked": "2.3.0"
         },
         "commons-configuration:commons-configuration": {
-            "locked": "1.10"
+            "locked": "1.8"
         },
         "io.mantisrx:mantis-client": {
             "locked": "2.0.1"
@@ -158,7 +158,7 @@
             "locked": "0.10.2"
         },
         "junit:junit": {
-            "locked": "4.13.2"
+            "locked": "4.13.1"
         },
         "org.apache.commons:commons-lang3": {
             "locked": "3.12.0"
@@ -178,16 +178,16 @@
             "locked": "1.17.13-SNAPSHOT"
         },
         "com.netflix.zuul:zuul-core": {
-            "locked": "2.3.1-SNAPSHOT"
+            "locked": "2.3.0"
         },
         "com.netflix.zuul:zuul-groovy": {
-            "locked": "2.3.1-SNAPSHOT"
+            "locked": "2.3.0"
         },
         "com.netflix.zuul:zuul-guice": {
-            "locked": "2.3.1-SNAPSHOT"
+            "locked": "2.3.0"
         },
         "commons-configuration:commons-configuration": {
-            "locked": "1.10"
+            "locked": "1.8"
         },
         "io.mantisrx:mantis-client": {
             "locked": "2.0.1"
@@ -211,7 +211,7 @@
             "locked": "0.10.2"
         },
         "junit:junit": {
-            "locked": "4.13.2"
+            "locked": "4.13.1"
         },
         "org.apache.commons:commons-lang3": {
             "locked": "3.12.0"

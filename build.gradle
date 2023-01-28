@@ -50,6 +50,7 @@ ext {
     servletApiVersion = '3.1.0'
     spectatorVersion = '0.92.+'
     vavrVersion = '0.10.2'
+    zuulVersion = '2.3.0'
 }
 
 group = 'io.mantisrx'
@@ -73,15 +74,15 @@ tasks.withType(Javadoc).all {
 
 
 dependencies {
-    api('com.netflix.zuul:zuul-core:2.+') {
+    api("com.netflix.zuul:zuul-core:${zuulVersion}") {
         exclude group: 'com.google.guava', module: 'guava'
         exclude group: 'com.google.inject', module: 'guice'
     }
-    api('com.netflix.zuul:zuul-guice:2.+') {
+    api("com.netflix.zuul:zuul-guice:${zuulVersion}") {
         exclude group: 'com.google.guava', module: 'guava'
         exclude group: 'com.google.inject', module: 'guice'
     }
-    implementation('com.netflix.zuul:zuul-groovy:2.+') {
+    implementation("com.netflix.zuul:zuul-groovy:${zuulVersion}") {
         exclude group: 'com.google.guava', module: 'guava'
         exclude group: 'com.google.inject', module: 'guice'
     }
