@@ -27,19 +27,19 @@
             "locked": "1.10"
         },
         "io.mantisrx:mantis-client": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mantis-control-plane-client": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mantis-discovery-proto": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mantis-runtime": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mantis-server-worker-client": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mql-jvm": {
             "locked": "3.4.0"
@@ -82,19 +82,19 @@
             "locked": "1.10"
         },
         "io.mantisrx:mantis-client": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mantis-control-plane-client": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mantis-discovery-proto": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mantis-runtime": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mantis-server-worker-client": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mql-jvm": {
             "locked": "3.4.0"
@@ -137,19 +137,19 @@
             "locked": "1.10"
         },
         "io.mantisrx:mantis-client": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mantis-control-plane-client": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mantis-discovery-proto": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mantis-runtime": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mantis-server-worker-client": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mql-jvm": {
             "locked": "3.4.0"
@@ -190,19 +190,19 @@
             "locked": "1.10"
         },
         "io.mantisrx:mantis-client": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mantis-control-plane-client": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mantis-discovery-proto": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mantis-runtime": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mantis-server-worker-client": {
-            "locked": "2.0.0-rc.75"
+            "locked": "2.0.1"
         },
         "io.mantisrx:mql-jvm": {
             "locked": "3.4.0"
