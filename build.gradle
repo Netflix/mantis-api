@@ -1,3 +1,5 @@
+import org.gradle.api.internal.project.ProjectInternal
+
 /*
  * Copyright 2019 Netflix, Inc.
  *
@@ -75,10 +77,12 @@ tasks.withType(Javadoc).all {
 
 dependencies {
     api("com.netflix.zuul:zuul-core:${zuulVersion}") {
+        attributes { attribute(ProjectInternal.STATUS_ATTRIBUTE, 'release') }
         exclude group: 'com.google.guava', module: 'guava'
         exclude group: 'com.google.inject', module: 'guice'
     }
     api("com.netflix.zuul:zuul-guice:${zuulVersion}") {
+        attributes { attribute(ProjectInternal.STATUS_ATTRIBUTE, 'release') }
         exclude group: 'com.google.guava', module: 'guava'
         exclude group: 'com.google.inject', module: 'guice'
     }
@@ -87,7 +91,9 @@ dependencies {
         exclude group: 'com.google.inject', module: 'guice'
     }
     implementation 'com.netflix.blitz4j:blitz4j:1.37.2'
-    implementation "com.netflix.governator:governator:1.+"
+    implementation ("com.netflix.governator:governator:1.+") {
+        attributes { attribute(ProjectInternal.STATUS_ATTRIBUTE, 'release') }
+    }
     implementation "org.apache.commons:commons-lang3:3.+"
     implementation "commons-configuration:commons-configuration:1.8"
     api "io.mantisrx:mantis-discovery-proto:$mantisDiscoveryProtoVersion"
