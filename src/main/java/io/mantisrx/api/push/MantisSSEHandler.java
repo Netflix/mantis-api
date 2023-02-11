@@ -14,7 +14,6 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
-import io.vavr.control.Option;
 import lombok.extern.slf4j.Slf4j;
 import mantis.io.reactivex.netty.RxNetty;
 import mantis.io.reactivex.netty.channel.StringTransformer;
@@ -38,13 +37,15 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+    private final DynamicIntProperty queueCapacity = new DynamicIntProperty("io.mantisrx.api.push.queueCapacity", 1000);
+    private final DynamicIntProperty writeIntervalMillis = new DynamicIntProperty("io.mantisrx.api.push.writeIntervalMillis", 50);
 
     private final ConnectionBroker connectionBroker;
     private final HighAvailabilityServices highAvailabilityServices;
     private final List<String> pushPrefixes;
+
     private Subscription subscription;
-    private final DynamicIntProperty queueCapacity = new DynamicIntProperty("io.mantisrx.api.push.queueCapacity", 1000);
-    private final DynamicIntProperty writeIntervalMillis = new DynamicIntProperty("io.mantisrx.api.push.writeIntervalMillis", 50);
+    private String uri;
 
     public MantisSSEHandler(ConnectionBroker connectionBroker, HighAvailabilityServices highAvailabilityServices,
                             List<String> pushPrefixes) {
@@ -75,7 +76,7 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
             response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
             ctx.writeAndFlush(response);
 
-            final String uri = request.uri();
+            uri = request.uri();
             final PushConnectionDetails pcd =
                     isSubmitAndConnect(request)
                             ? new PushConnectionDetails(uri, jobSubmit(request), PushConnectionDetails.TARGET_TYPE.CONNECT_BY_ID, io.vavr.collection.List.empty())
@@ -122,11 +123,6 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
                         }
                     })
                     .subscribe();
-
-
-                    /*
-                     */
-
         } else {
             ctx.fireChannelRead(request.retain());
         }
@@ -162,20 +158,32 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        if (this.subscription != null && !this.subscription.isUnsubscribed()) {
-            this.subscription.unsubscribe();
-        }
-        cause.printStackTrace();
-        ctx.close();
+    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+        log.info("Channel {} is unregistered. URI: {}", ctx.channel(), uri);
+        unsubscribeIfSubscribed();
+        super.channelUnregistered(ctx);
     }
 
     @Override
-    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-        if (this.subscription != null && !this.subscription.isUnsubscribed()) {
-            this.subscription.unsubscribe();
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        log.info("Channel {} is inactive. URI: {}", ctx.channel(), uri);
+        unsubscribeIfSubscribed();
+        super.channelInactive(ctx);
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        log.warn("Exception caught by channel {}. URI: {}", ctx.channel(), uri, cause);
+        unsubscribeIfSubscribed();
+        ctx.close();
+    }
+
+    /** Unsubscribe if it's subscribed. */
+    private void unsubscribeIfSubscribed() {
+        if (subscription != null && !subscription.isUnsubscribed()) {
+            log.info("SSE unsubscribing subscription with URI: {}", uri);
+            subscription.unsubscribe();
         }
-        super.channelUnregistered(ctx);
     }
 
     public String jobSubmit(FullHttpRequest request) {

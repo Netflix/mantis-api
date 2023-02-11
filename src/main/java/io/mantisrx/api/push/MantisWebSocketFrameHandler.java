@@ -23,9 +23,11 @@ import rx.Subscription;
 @Slf4j
 public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private final ConnectionBroker connectionBroker;
-    private Subscription subscription;
     private final DynamicIntProperty queueCapacity = new DynamicIntProperty("io.mantisrx.api.push.queueCapacity", 1000);
     private final DynamicIntProperty writeIntervalMillis = new DynamicIntProperty("io.mantisrx.api.push.writeIntervalMillis", 50);
+
+    private Subscription subscription;
+    private String uri;
 
     public MantisWebSocketFrameHandler(ConnectionBroker broker) {
         super(true);
@@ -35,15 +37,15 @@ public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<Tex
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
         if (evt.getClass() == WebSocketServerProtocolHandler.HandshakeComplete.class) {
+            WebSocketServerProtocolHandler.HandshakeComplete complete = (WebSocketServerProtocolHandler.HandshakeComplete) evt;
 
+            uri = complete.requestUri();
+            final PushConnectionDetails pcd = PushConnectionDetails.from(uri);
+
+            log.info("Request to URI '{}' is a WebSSocket upgrade, removing the SSE handler", uri);
             if (ctx.pipeline().get(MantisSSEHandler.class) != null) {
                 ctx.pipeline().remove(MantisSSEHandler.class);
             }
-
-            WebSocketServerProtocolHandler.HandshakeComplete complete = (WebSocketServerProtocolHandler.HandshakeComplete) evt;
-
-            final String uri = complete.requestUri();
-            final PushConnectionDetails pcd = PushConnectionDetails.from(uri);
 
             final String[] tags = Util.getTaglist(uri, pcd.target);
             Counter numDroppedBytesCounter = SpectatorUtils.newCounter(Constants.numDroppedBytesCounterName, pcd.target, tags);
@@ -51,7 +53,7 @@ public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<Tex
             Counter numMessagesCounter = SpectatorUtils.newCounter(Constants.numMessagesCounterName, pcd.target, tags);
             Counter numBytesCounter = SpectatorUtils.newCounter(Constants.numBytesCounterName, pcd.target, tags);
 
-            BlockingQueue<String> queue = new LinkedBlockingQueue<String>(queueCapacity.get());
+            BlockingQueue<String> queue = new LinkedBlockingQueue<>(queueCapacity.get());
 
             this.subscription = this.connectionBroker.connect(pcd)
                     .mergeWith(Observable.interval(writeIntervalMillis.get(), TimeUnit.MILLISECONDS)
@@ -75,7 +77,6 @@ public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<Tex
                         }
                     })
                     .subscribe();
-
         } else {
             ReferenceCountUtil.retain(evt);
             super.userEventTriggered(ctx, evt);
@@ -84,13 +85,37 @@ public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<Tex
 
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-        if (subscription != null && !subscription.isUnsubscribed()) {
-            this.subscription.unsubscribe();
-        }
+        log.info("Channel {} is unregistered. URI: {}", ctx.channel(), uri);
+        unsubscribeIfSubscribed();
+        super.channelUnregistered(ctx);
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) throws Exception {
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        log.info("Channel {} is inactive. URI: {}", ctx.channel(), uri);
+        unsubscribeIfSubscribed();
+        super.channelInactive(ctx);
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        log.warn("Exception caught by channel {}. URI: {}", ctx.channel(), uri, cause);
+        unsubscribeIfSubscribed();
+        // This is the tail of handlers. We should close the channel between the server and the client,
+        // essentially causing the client to disconnect and terminate.
+        ctx.close();
+    }
+
+    @Override
+    protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) {
         // No op.
+    }
+
+    /** Unsubscribe if it's subscribed. */
+    private void unsubscribeIfSubscribed() {
+        if (subscription != null && !subscription.isUnsubscribed()) {
+            log.info("WebSocket unsubscribing subscription with URI: {}", uri);
+            subscription.unsubscribe();
+        }
     }
 }
