@@ -15,85 +15,50 @@
  */
 package io.mantisrx.api.services;
 
-import io.mantisrx.shaded.com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.inject.Inject;
-import com.google.inject.name.Named;
-import com.netflix.config.DynamicStringProperty;
-import io.mantisrx.discovery.proto.AppJobClustersMap;
 import com.netflix.spectator.api.Counter;
 import com.netflix.zuul.netty.SpectatorUtils;
 import io.mantisrx.api.proto.AppDiscoveryMap;
 import io.mantisrx.client.MantisClient;
+import io.mantisrx.discovery.proto.AppJobClustersMap;
 import io.mantisrx.server.core.JobSchedulingInfo;
 import io.vavr.control.Either;
 import io.vavr.control.Option;
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import rx.Observable;
 import rx.Scheduler;
 
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
 @Slf4j
 public class AppStreamDiscoveryService {
 
-    private final AtomicReference<AppJobClustersMap> appJobClusterMappings = new AtomicReference<>();
-
     private final MantisClient mantisClient;
     private final Scheduler scheduler;
-    private final ObjectMapper objectMapper;
 
-    private final Counter appJobClusterMappingNullCount;
-    private final Counter appJobClusterMappingRequestCount;
-    private final Counter appJobClusterMappingFailCount;
+    private final AppStreamStore appStreamStore;
 
-    private final DynamicStringProperty appJobClustersProp = new DynamicStringProperty("mreAppJobClusterMap", "");
-
-    @Inject
-    public AppStreamDiscoveryService(MantisClient mantisClient,
-                                     @Named("io-scheduler") Scheduler scheduler,
-                                     ObjectMapper objectMapper) {
+    public AppStreamDiscoveryService(
+        MantisClient mantisClient,
+        Scheduler scheduler,
+        AppStreamStore appStreamStore) {
         this.mantisClient = mantisClient;
         this.scheduler = scheduler;
-        this.objectMapper = objectMapper;
+        this.appStreamStore = appStreamStore;
 
-        this.appJobClusterMappingNullCount = SpectatorUtils.newCounter("appJobClusterMappingNull", "mantisapi");
-        this.appJobClusterMappingRequestCount = SpectatorUtils.newCounter("appJobClusterMappingRequest", "mantisapi", "app", "unknown");
-        this.appJobClusterMappingFailCount = SpectatorUtils.newCounter("appJobClusterMappingFail", "mantisapi");
-
-        updateAppJobClustersMapping(appJobClustersProp.get());
-        appJobClustersProp.addCallback(() -> updateAppJobClustersMapping(appJobClustersProp.get()));
-    }
-
-    private void updateAppJobClustersMapping(String appJobClusterStr) {
-        if (appJobClusterStr != null) {
-            try {
-                AppJobClustersMap appJobClustersMap = objectMapper
-                        .readValue(appJobClusterStr, AppJobClustersMap.class);
-                log.info("appJobClustersMap updated to {}", appJobClustersMap);
-                appJobClusterMappings.set(appJobClustersMap);
-            } catch (Exception ioe) {
-                log.error("failed to update appJobClustersMap on Property update {}", appJobClusterStr, ioe);
-                appJobClusterMappingFailCount.increment();
-            }
-        } else {
-            log.error("appJobCluster mapping property is NULL");
-            appJobClusterMappingNullCount.increment();
-        }
+        Counter appJobClusterMappingNullCount = SpectatorUtils.newCounter(
+            "appJobClusterMappingNull", "mantisapi");
+        Counter appJobClusterMappingRequestCount = SpectatorUtils.newCounter(
+            "appJobClusterMappingRequest", "mantisapi", "app", "unknown");
+        Counter appJobClusterMappingFailCount = SpectatorUtils.newCounter(
+            "appJobClusterMappingFail", "mantisapi");
     }
 
 
     public Either<String, AppDiscoveryMap> getAppDiscoveryMap(List<String> appNames) {
         try {
-            AppJobClustersMap appJobClustersMap = appJobClusterMappings.get();
-            if (appJobClustersMap == null) {
-                log.error("appJobCluster Mapping is null");
-                appJobClusterMappingNullCount.increment();
-                return Either.left("appJobCluster Mapping is null.");
-            }
 
-            AppJobClustersMap appJobClusters = getAppJobClustersMap(appNames, appJobClustersMap);
+            AppJobClustersMap appJobClusters = getAppJobClustersMap(appNames);
 
             //
             // Lookup discovery info per stream and build mapping
@@ -118,21 +83,8 @@ public class AppStreamDiscoveryService {
         }
     }
 
-    public AppJobClustersMap getAppJobClustersMap(List<String> appNames) {
-        return this.getAppJobClustersMap(appNames, this.appJobClusterMappings.get());
-    }
-
-    private AppJobClustersMap getAppJobClustersMap(List<String> appNames, AppJobClustersMap appJobClustersMap) {
-        AppJobClustersMap appJobClusters;
-
-        if (appNames.size() > 0) {
-            //appNames.forEach(app -> SpectatorUtils.buildAndRegisterCounter(registry, "appJobClusterMappingRequest", "app", app).increment());
-            appJobClusters = appJobClustersMap.getFilteredAppJobClustersMap(appNames);
-        } else {
-            appJobClusterMappingRequestCount.increment();
-            appJobClusters = appJobClustersMap;
-        }
-        return appJobClusters;
+    public AppJobClustersMap getAppJobClustersMap(List<String> appNames) throws IOException  {
+        return appStreamStore.getJobClusterMappings(appNames);
     }
 
     private Option<JobSchedulingInfo> getJobDiscoveryInfo(String jobCluster) {

@@ -47,9 +47,9 @@ public class MREAppStreamToJobClusterMapping extends HttpSyncEndpoint {
     @Override
     public HttpResponseMessage apply(HttpRequestMessage request) {
         List<String> apps = request.getQueryParams().get(APPNAME_QUERY_PARAM);
-        AppJobClustersMap payload = appStreamDiscoveryService.getAppJobClustersMap(apps);
+        Try<AppJobClustersMap> payloadTry = Try.ofCallable(() -> appStreamDiscoveryService.getAppJobClustersMap(apps));
 
-        Try<String> serialized = Try.of(() -> objectMapper.writeValueAsString(payload));
+        Try<String> serialized = payloadTry.flatMap(payload -> Try.of(() -> objectMapper.writeValueAsString(payload)));
 
         return serialized.map(body -> {
             HttpResponseMessage resp = new HttpResponseMessageImpl(request.getContext(), request, 200);
