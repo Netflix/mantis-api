@@ -19,7 +19,7 @@ import io.mantisrx.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.netflix.config.DynamicStringProperty;
-import com.netflix.mantis.discovery.proto.AppJobClustersMap;
+import io.mantisrx.discovery.proto.AppJobClustersMap;
 import com.netflix.spectator.api.Counter;
 import com.netflix.zuul.netty.SpectatorUtils;
 import io.mantisrx.api.proto.AppDiscoveryMap;
@@ -37,8 +37,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 public class AppStreamDiscoveryService {
-
-    private static final String APP_JOB_CLUSTER_MAPPING_KEY = "mreAppJobClusterMap";
 
     private final AtomicReference<AppJobClustersMap> appJobClusterMappings = new AtomicReference<>();
 
@@ -124,7 +122,7 @@ public class AppStreamDiscoveryService {
         return this.getAppJobClustersMap(appNames, this.appJobClusterMappings.get());
     }
 
-    public AppJobClustersMap getAppJobClustersMap(List<String> appNames, AppJobClustersMap appJobClustersMap) {
+    private AppJobClustersMap getAppJobClustersMap(List<String> appNames, AppJobClustersMap appJobClustersMap) {
         AppJobClustersMap appJobClusters;
 
         if (appNames.size() > 0) {
