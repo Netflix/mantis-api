@@ -73,12 +73,12 @@ public class ConfigurationBasedAppStreamStore implements AppStreamStore {
     }
   }
 
-  interface ConfigSource extends Supplier<String> {
+  public interface ConfigSource extends Supplier<String> {
 
     Listenable<ConfigurationChangeListener> getListenable();
   }
 
-  interface ConfigurationChangeListener {
+  public interface ConfigurationChangeListener {
 
     void onConfigChange(String config);
   }
