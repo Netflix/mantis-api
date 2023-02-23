@@ -16,7 +16,6 @@
 package io.mantisrx.api.filters;
 
 import io.mantisrx.shaded.com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.inject.Inject;
 import io.mantisrx.discovery.proto.AppJobClustersMap;
 import com.netflix.zuul.filters.http.HttpSyncEndpoint;
 import com.netflix.zuul.message.http.HttpHeaderNames;
@@ -24,10 +23,12 @@ import com.netflix.zuul.message.http.HttpRequestMessage;
 import com.netflix.zuul.message.http.HttpResponseMessage;
 import com.netflix.zuul.message.http.HttpResponseMessageImpl;
 import io.mantisrx.api.services.AppStreamDiscoveryService;
+import io.mantisrx.shaded.com.google.common.base.Preconditions;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.vavr.control.Try;
 
 import java.util.List;
+import javax.inject.Inject;
 
 public class MREAppStreamToJobClusterMapping extends HttpSyncEndpoint {
 
@@ -40,7 +41,9 @@ public class MREAppStreamToJobClusterMapping extends HttpSyncEndpoint {
     @Inject
     public MREAppStreamToJobClusterMapping(AppStreamDiscoveryService appStreamDiscoveryService,
                                            ObjectMapper objectMapper) {
+        Preconditions.checkArgument(appStreamDiscoveryService != null, "appStreamDiscoveryService cannot be null");
         this.appStreamDiscoveryService = appStreamDiscoveryService;
+        Preconditions.checkArgument(objectMapper != null, "objectMapper cannot be null");
         this.objectMapper = objectMapper;
     }
 
