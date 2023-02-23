@@ -13,6 +13,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
+@SuppressWarnings("unused")
 @Slf4j
 public class ConfigurationBasedAppStreamStore implements AppStreamStore {
 
@@ -27,8 +28,8 @@ public class ConfigurationBasedAppStreamStore implements AppStreamStore {
   public ConfigurationBasedAppStreamStore(ConfigSource configSource) {
     configSource.getListenable()
         .addListener((newConfig) -> updateAppJobClustersMapping(newConfig));
-    updateAppJobClustersMapping(configSource.get());
     this.jsonSerializer = new JsonSerializer();
+    updateAppJobClustersMapping(configSource.get());
 
     this.appJobClusterMappingNullCount = SpectatorUtils.newCounter(
         "appJobClusterMappingNull", "mantisapi");
