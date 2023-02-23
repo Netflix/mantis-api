@@ -15,6 +15,7 @@
  */
 package io.mantisrx.api.services;
 
+import com.google.common.base.Preconditions;
 import com.netflix.spectator.api.Counter;
 import com.netflix.zuul.netty.SpectatorUtils;
 import io.mantisrx.api.proto.AppDiscoveryMap;
@@ -42,6 +43,9 @@ public class AppStreamDiscoveryService {
         MantisClient mantisClient,
         Scheduler scheduler,
         AppStreamStore appStreamStore) {
+        Preconditions.checkArgument(mantisClient != null);
+        Preconditions.checkArgument(appStreamStore != null);
+        Preconditions.checkArgument(scheduler != null);
         this.mantisClient = mantisClient;
         this.scheduler = scheduler;
         this.appStreamStore = appStreamStore;
