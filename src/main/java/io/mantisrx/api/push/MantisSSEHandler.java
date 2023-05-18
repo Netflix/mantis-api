@@ -95,22 +95,24 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
             Counter numDroppedMessagesCounter = SpectatorUtils.newCounter(Constants.numDroppedMessagesCounterName, pcd.target, tags);
             Counter numMessagesCounter = SpectatorUtils.newCounter(Constants.numMessagesCounterName, pcd.target, tags);
             Counter numBytesCounter = SpectatorUtils.newCounter(Constants.numBytesCounterName, pcd.target, tags);
+            Counter drainTriggeredCounter = SpectatorUtils.newCounter(Constants.drainTriggeredCounterName, pcd.target, tags);
+            Counter numIncomingMessagesCounter = SpectatorUtils.newCounter(Constants.numIncomingMessagesCounterName, pcd.target, tags);
 
             BlockingQueue<String> queue = new LinkedBlockingQueue<>(queueCapacity.get());
 
             drainFuture = scheduledExecutorService.scheduleAtFixedRate(() -> {
                 try {
                     if (queue.size() > 0 && ctx.channel().isWritable()) {
+                        drainTriggeredCounter.increment();
                         final List<String> items = new ArrayList<>(queue.size());
                         synchronized (queue) {
                             queue.drainTo(items);
                         }
                         for (String data : items) {
-                            ctx.write(Unpooled.copiedBuffer(data, StandardCharsets.UTF_8));
+                            ctx.writeAndFlush(Unpooled.copiedBuffer(data, StandardCharsets.UTF_8));
                             numMessagesCounter.increment();
                             numBytesCounter.increment(data.length());
                         }
-                        ctx.flush();
                     }
                 } catch (Exception ex) {
                     log.error("Error writing to channel", ex);
@@ -118,6 +120,7 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
             }, writeIntervalMillis.get(), writeIntervalMillis.get(), TimeUnit.MILLISECONDS);
 
             this.subscription = this.connectionBroker.connect(pcd)
+                    .doOnNext(event -> numIncomingMessagesCounter.increment())
                     .mergeWith(tunnelPingsEnabled
                             ? Observable.interval(Constants.TunnelPingIntervalSecs, Constants.TunnelPingIntervalSecs,
                             TimeUnit.SECONDS)
