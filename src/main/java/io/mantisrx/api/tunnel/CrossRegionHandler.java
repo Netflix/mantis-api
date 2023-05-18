@@ -33,6 +33,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -42,6 +45,7 @@ import com.netflix.config.DynamicStringProperty;
 import com.netflix.spectator.api.Counter;
 import com.netflix.zuul.netty.SpectatorUtils;
 
+import io.mantisrx.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -87,6 +91,10 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private final Scheduler scheduler;
 
     private Subscription subscription = null;
+    private String uriForLogging = null;
+    private ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(1,
+            new ThreadFactoryBuilder().setNameFormat("cross-region-handler-drainer-%d").build());
+    private ScheduledFuture drainFuture;
     private final DynamicIntProperty queueCapacity = new DynamicIntProperty("io.mantisrx.api.push.queueCapacity", 1000);
     private final DynamicIntProperty writeIntervalMillis = new DynamicIntProperty("io.mantisrx.api.push.writeIntervalMillis", 50);
 	private final DynamicStringProperty tunnelRegionsProperty = new DynamicStringProperty("io.mantisrx.api.tunnel.regions", Util.getLocalRegion());
@@ -113,7 +121,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
-
+        uriForLogging = request.uri();
         if (HttpUtil.is100ContinueExpected(request)) {
             send100Contine(ctx);
         }
@@ -285,32 +293,44 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
         Counter numDroppedMessagesCounter = SpectatorUtils.newCounter(Constants.numDroppedMessagesCounterName, pcd.target, tags);
         Counter numMessagesCounter = SpectatorUtils.newCounter(Constants.numMessagesCounterName, pcd.target, tags);
         Counter numBytesCounter = SpectatorUtils.newCounter(Constants.numBytesCounterName, pcd.target, tags);
+        Counter drainTriggeredCounter = SpectatorUtils.newCounter(Constants.drainTriggeredCounterName, pcd.target, tags);
+        Counter numIncomingMessagesCounter = SpectatorUtils.newCounter(Constants.numIncomingMessagesCounterName, pcd.target, tags);
 
         BlockingQueue<String> queue = new LinkedBlockingQueue<String>(queueCapacity.get());
 
+        drainFuture = scheduledExecutorService.scheduleAtFixedRate(() -> {
+            try {
+                if (queue.size() > 0 && ctx.channel().isWritable()) {
+                    drainTriggeredCounter.increment();
+                    final List<String> items = new ArrayList<>(queue.size());
+                    synchronized (queue) {
+                        queue.drainTo(items);
+                    }
+                    for (String data : items) {
+                        ctx.writeAndFlush(Unpooled.copiedBuffer(data, StandardCharsets.UTF_8));
+                        numMessagesCounter.increment();
+                        numBytesCounter.increment(data.length());
+                    }
+                }
+            } catch (Exception ex) {
+                log.error("Error writing to channel", ex);
+            }
+        }, writeIntervalMillis.get(), writeIntervalMillis.get(), TimeUnit.MILLISECONDS);
+
         subscription = connectionBroker.connect(pcd)
                 .filter(event -> !event.equalsIgnoreCase(TunnelPingMessage) || sendThroughTunnelPings)
-                .mergeWith(Observable.interval(writeIntervalMillis.get(), TimeUnit.MILLISECONDS)
-                              .map(__ -> Constants.DUMMY_TIMER_DATA))
                 .doOnNext(event -> {
+                    numIncomingMessagesCounter.increment();
                     if (!Constants.DUMMY_TIMER_DATA.equals(event)) {
                       String data = Constants.SSE_DATA_PREFIX + event + Constants.SSE_DATA_SUFFIX;
-                      if (!queue.offer(data)) {
+                        boolean offer = false;
+                        synchronized (queue) {
+                            offer = queue.offer(data);
+                        }
+                        if (!offer) {
                           numDroppedBytesCounter.increment(data.length());
                           numDroppedMessagesCounter.increment();
                       }
-                    }
-                })
-                .filter(Constants.DUMMY_TIMER_DATA::equals)
-                .doOnNext(__ -> {
-                    if (ctx.channel().isWritable()) {
-                        final List<String> items = new ArrayList<>(queue.size());
-                        queue.drainTo(items);
-                        for (String data : items) {
-                          ctx.writeAndFlush(Unpooled.copiedBuffer(data, StandardCharsets.UTF_8));
-                          numMessagesCounter.increment();
-                          numBytesCounter.increment(data.length());
-                        }
                     }
                 })
                 .subscribe();
@@ -318,9 +338,38 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+        log.info("Channel {} is unregistered. URI: {}", ctx.channel(), uriForLogging);
+        unsubscribeIfSubscribed();
         super.channelUnregistered(ctx);
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        log.info("Channel {} is inactive. URI: {}", ctx.channel(), uriForLogging);
+        unsubscribeIfSubscribed();
+        super.channelInactive(ctx);
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        log.warn("Exception caught by channel {}. URI: {}", ctx.channel(), uriForLogging, cause);
+        unsubscribeIfSubscribed();
+        // This is the tail of handlers. We should close the channel between the server and the client,
+        // essentially causing the client to disconnect and terminate.
+        ctx.close();
+    }
+
+    /** Unsubscribe if it's subscribed. */
+    private void unsubscribeIfSubscribed() {
         if (subscription != null && !subscription.isUnsubscribed()) {
+            log.info("SSE unsubscribing subscription with URI: {}", uriForLogging);
             subscription.unsubscribe();
+        }
+        if (drainFuture != null) {
+            drainFuture.cancel(false);
+        }
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdown();
         }
     }
 
