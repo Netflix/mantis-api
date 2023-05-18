@@ -1,7 +1,11 @@
 package io.mantisrx.api.push;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,6 +15,8 @@ import com.netflix.spectator.api.Counter;
 import com.netflix.zuul.netty.SpectatorUtils;
 import io.mantisrx.api.Constants;
 import io.mantisrx.api.Util;
+import io.mantisrx.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
@@ -28,6 +34,9 @@ public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<Tex
 
     private Subscription subscription;
     private String uri;
+    private ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(1,
+            new ThreadFactoryBuilder().setNameFormat("websocket-handler-drainer-%d").build());
+    private ScheduledFuture drainFuture;
 
     public MantisWebSocketFrameHandler(ConnectionBroker broker) {
         super(true);
@@ -52,27 +61,41 @@ public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<Tex
             Counter numDroppedMessagesCounter = SpectatorUtils.newCounter(Constants.numDroppedMessagesCounterName, pcd.target, tags);
             Counter numMessagesCounter = SpectatorUtils.newCounter(Constants.numMessagesCounterName, pcd.target, tags);
             Counter numBytesCounter = SpectatorUtils.newCounter(Constants.numBytesCounterName, pcd.target, tags);
+            Counter drainTriggeredCounter = SpectatorUtils.newCounter(Constants.drainTriggeredCounterName, pcd.target, tags);
+            Counter numIncomingMessagesCounter = SpectatorUtils.newCounter(Constants.numIncomingMessagesCounterName, pcd.target, tags);
 
             BlockingQueue<String> queue = new LinkedBlockingQueue<>(queueCapacity.get());
 
-            this.subscription = this.connectionBroker.connect(pcd)
-                    .mergeWith(Observable.interval(writeIntervalMillis.get(), TimeUnit.MILLISECONDS)
-                                 .map(__ -> Constants.DUMMY_TIMER_DATA))
-                    .doOnNext(event -> {
-                        if (!Constants.DUMMY_TIMER_DATA.equals(event) && !queue.offer(event)) {
-                            numDroppedBytesCounter.increment(event.length());
-                            numDroppedMessagesCounter.increment();
-                        }
-                    })
-                    .filter(Constants.DUMMY_TIMER_DATA::equals)
-                    .doOnNext(__ -> {
-                        if (ctx.channel().isWritable()) {
-                            final List<String> items = new ArrayList<>(queue.size());
+            drainFuture = scheduledExecutorService.scheduleAtFixedRate(() -> {
+                try {
+                    if (queue.size() > 0 && ctx.channel().isWritable()) {
+                        drainTriggeredCounter.increment();
+                        final List<String> items = new ArrayList<>(queue.size());
+                        synchronized (queue) {
                             queue.drainTo(items);
-                            for (String event : items) {
-                                ctx.writeAndFlush(new TextWebSocketFrame(event));
-                                numMessagesCounter.increment();
-                                numBytesCounter.increment(event.length());
+                        }
+                        for (String data : items) {
+                            ctx.writeAndFlush(Unpooled.copiedBuffer(data, StandardCharsets.UTF_8));
+                            numMessagesCounter.increment();
+                            numBytesCounter.increment(data.length());
+                        }
+                    }
+                } catch (Exception ex) {
+                    log.error("Error writing to channel", ex);
+                }
+            }, writeIntervalMillis.get(), writeIntervalMillis.get(), TimeUnit.MILLISECONDS);
+
+            this.subscription = this.connectionBroker.connect(pcd)
+                    .doOnNext(event -> {
+                        numIncomingMessagesCounter.increment();
+                        if (!Constants.DUMMY_TIMER_DATA.equals(event)) {
+                            boolean offer = false;
+                            synchronized (queue) {
+                                offer = queue.offer(event);
+                            }
+                            if (!offer) {
+                                numDroppedBytesCounter.increment(event.length());
+                                numDroppedMessagesCounter.increment();
                             }
                         }
                     })
