@@ -8,6 +8,8 @@ public class Constants {
     public static final String numDroppedMessagesCounterName = "numDroppedSinkMessages";
     public static final String numBytesCounterName = "numSinkBytes";
     public static final String numDroppedBytesCounterName = "numDroppedSinkBytes";
+    public static final String drainTriggeredCounterName = "drainTriggered";
+    public static final String numIncomingMessagesCounterName = "numIncomingMessages";
 
     public static final String SSE_DATA_SUFFIX = "\r\n\r\n";
     public static final String SSE_DATA_PREFIX = "data: ";
