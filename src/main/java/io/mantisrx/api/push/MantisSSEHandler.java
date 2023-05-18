@@ -7,8 +7,7 @@ import io.mantisrx.api.Constants;
 import io.mantisrx.api.Util;
 import io.mantisrx.server.core.master.MasterDescription;
 import io.mantisrx.server.master.client.HighAvailabilityServices;
-import io.mantisrx.server.master.client.MantisMasterGateway;
-import io.mantisrx.server.master.client.MasterClientWrapper;
+import io.mantisrx.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -30,6 +29,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -45,6 +47,9 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
     private final List<String> pushPrefixes;
 
     private Subscription subscription;
+    private ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(1,
+            new ThreadFactoryBuilder().setNameFormat("sse-handler-drainer-%d").build());
+    private ScheduledFuture drainFuture;
     private String uri;
 
     public MantisSSEHandler(ConnectionBroker connectionBroker, HighAvailabilityServices highAvailabilityServices,
@@ -91,7 +96,26 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
             Counter numMessagesCounter = SpectatorUtils.newCounter(Constants.numMessagesCounterName, pcd.target, tags);
             Counter numBytesCounter = SpectatorUtils.newCounter(Constants.numBytesCounterName, pcd.target, tags);
 
-            BlockingQueue<String> queue = new LinkedBlockingQueue<String>(queueCapacity.get());
+            BlockingQueue<String> queue = new LinkedBlockingQueue<>(queueCapacity.get());
+
+            drainFuture = scheduledExecutorService.scheduleAtFixedRate(() -> {
+                try {
+                    if (queue.size() > 0 && ctx.channel().isWritable()) {
+                        final List<String> items = new ArrayList<>(queue.size());
+                        synchronized (queue) {
+                            queue.drainTo(items);
+                        }
+                        for (String data : items) {
+                            ctx.write(Unpooled.copiedBuffer(data, StandardCharsets.UTF_8));
+                            numMessagesCounter.increment();
+                            numBytesCounter.increment(data.length());
+                        }
+                        ctx.flush();
+                    }
+                } catch (Exception ex) {
+                    log.error("Error writing to channel", ex);
+                }
+            }, writeIntervalMillis.get(), writeIntervalMillis.get(), TimeUnit.MILLISECONDS);
 
             this.subscription = this.connectionBroker.connect(pcd)
                     .mergeWith(tunnelPingsEnabled
@@ -99,27 +123,17 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
                             TimeUnit.SECONDS)
                             .map(l -> Constants.TunnelPingMessage)
                             : Observable.empty())
-                    .mergeWith(Observable.interval(writeIntervalMillis.get(), TimeUnit.MILLISECONDS)
-                                .map(__ -> Constants.DUMMY_TIMER_DATA))
                     .doOnNext(event -> {
                         if (!Constants.DUMMY_TIMER_DATA.equals(event)) {
                           String data = Constants.SSE_DATA_PREFIX + event + Constants.SSE_DATA_SUFFIX;
-                          if (!queue.offer(data)) {
+                          boolean offer = false;
+                          synchronized (queue) {
+                              offer = queue.offer(data);
+                          }
+                          if (!offer) {
                               numDroppedBytesCounter.increment(data.length());
                               numDroppedMessagesCounter.increment();
                           }
-                        }
-                    })
-                    .filter(Constants.DUMMY_TIMER_DATA::equals)
-                    .doOnNext(__ -> {
-                        if (ctx.channel().isWritable()) {
-                            final List<String> items = new ArrayList<>(queue.size());
-                            queue.drainTo(items);
-                            for (String data : items) {
-                              ctx.writeAndFlush(Unpooled.copiedBuffer(data, StandardCharsets.UTF_8));
-                              numMessagesCounter.increment();
-                              numBytesCounter.increment(data.length());
-                            }
                         }
                     })
                     .subscribe();
@@ -183,6 +197,12 @@ public class MantisSSEHandler extends SimpleChannelInboundHandler<FullHttpReques
         if (subscription != null && !subscription.isUnsubscribed()) {
             log.info("SSE unsubscribing subscription with URI: {}", uri);
             subscription.unsubscribe();
+        }
+        if (drainFuture != null) {
+            drainFuture.cancel(false);
+        }
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdown();
         }
     }
 
