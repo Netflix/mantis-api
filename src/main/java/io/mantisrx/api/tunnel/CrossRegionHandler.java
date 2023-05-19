@@ -307,10 +307,11 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                         queue.drainTo(items);
                     }
                     for (String data : items) {
-                        ctx.writeAndFlush(Unpooled.copiedBuffer(data, StandardCharsets.UTF_8));
+                        ctx.write(Unpooled.copiedBuffer(data, StandardCharsets.UTF_8));
                         numMessagesCounter.increment();
                         numBytesCounter.increment(data.length());
                     }
+                    ctx.flush();
                 }
             } catch (Exception ex) {
                 log.error("Error writing to channel", ex);
