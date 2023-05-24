@@ -16,14 +16,12 @@ import com.netflix.zuul.netty.SpectatorUtils;
 import io.mantisrx.api.Constants;
 import io.mantisrx.api.Util;
 import io.mantisrx.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
-import rx.Observable;
 import rx.Subscription;
 
 @Slf4j
@@ -140,6 +138,12 @@ public class MantisWebSocketFrameHandler extends SimpleChannelInboundHandler<Tex
         if (subscription != null && !subscription.isUnsubscribed()) {
             log.info("WebSocket unsubscribing subscription with URI: {}", uri);
             subscription.unsubscribe();
+        }
+        if (drainFuture != null) {
+            drainFuture.cancel(false);
+        }
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdown();
         }
     }
 }
