@@ -16,6 +16,10 @@
 
 package io.mantisrx.api;
 
+import com.google.inject.Scopes;
+import com.google.inject.util.Modules;
+import com.netflix.appinfo.EurekaInstanceConfig;
+import com.netflix.appinfo.providers.MyDataCenterInstanceConfigProvider;
 import com.netflix.discovery.guice.EurekaModule;
 import com.netflix.zuul.*;
 import com.netflix.zuul.filters.FilterRegistry;
@@ -33,8 +37,6 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import com.netflix.config.ConfigurationManager;
-import com.netflix.discovery.AbstractDiscoveryClientOptionalArgs;
-import com.netflix.discovery.DiscoveryClient;
 import com.netflix.netty.common.accesslog.AccessLogPublisher;
 import com.netflix.netty.common.status.ServerStatusManager;
 import com.netflix.spectator.api.DefaultRegistry;
@@ -54,7 +56,6 @@ import com.netflix.zuul.stats.RequestMetricsPublisher;
 import io.mantisrx.api.tunnel.MantisCrossRegionalClient;
 import io.mantisrx.api.tunnel.NoOpCrossRegionalClient;
 import io.mantisrx.client.MantisClient;
-import io.mantisrx.server.master.client.MasterClientWrapper;
 import io.mantisrx.server.worker.client.WorkerMetricsClient;
 import org.apache.commons.configuration.AbstractConfiguration;
 import rx.Scheduler;
@@ -79,7 +80,14 @@ public class MantisAPIModule extends AbstractModule {
         // zuul filter loading
         bind(DynamicCodeCompiler.class).to(GroovyCompiler.class);
         bind(FilenameFilter.class).to(GroovyFileFilter.class);
-        install(new EurekaModule());
+
+        install(Modules.override(new EurekaModule()).with(new AbstractModule() {
+            @Override
+            protected void configure() {
+                bind(EurekaInstanceConfig.class).toProvider(MyDataCenterInstanceConfigProvider.class).in(Scopes.SINGLETON);
+            }
+        }));
+
         install(new ZuulFiltersModule());
         bind(FilterLoader.class).to(DynamicFilterLoader.class);
         bind(FilterRegistry.class).to(MutableFilterRegistry.class);
@@ -105,15 +113,14 @@ public class MantisAPIModule extends AbstractModule {
 
     @Provides
     @Singleton
-    MasterClientWrapper provideMantisClientWrapper(AbstractConfiguration configuration) {
+    HighAvailabilityServices provideHighAvailabilityServices(AbstractConfiguration configuration) {
         Properties props = new Properties();
         configuration.getKeys("mantis").forEachRemaining(key -> {
             props.put(key, configuration.getString(key));
         });
 
-        HighAvailabilityServices haServices = HighAvailabilityServicesUtil.createHAServices(
+        return HighAvailabilityServicesUtil.createHAServices(
             Configurations.frmProperties(props, CoreConfiguration.class));
-        return new MasterClientWrapper(haServices.getMasterClientApi());
     }
 
     @Provides @Singleton MantisClient provideMantisClient(AbstractConfiguration configuration) {

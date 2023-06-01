@@ -31,10 +31,17 @@ import com.netflix.zuul.netty.server.Server;
 public class Bootstrap {
 
     public static void main(String[] args) {
-        new Bootstrap().start();
+        String propertiesFile = null;
+        if (args.length >= 2 && "-p".equals(args[0])) {
+            propertiesFile = args[1];
+            if (propertiesFile.endsWith(".properties")) {
+                propertiesFile = propertiesFile.substring(0, propertiesFile.length() - 11);
+            }
+        }
+        new Bootstrap().start(propertiesFile);
     }
 
-    public void start() {
+    public void start(String configName) {
         System.out.println("Mantis API: starting up.");
         long startTime = System.currentTimeMillis();
         int exitCode = 0;
@@ -42,7 +49,7 @@ public class Bootstrap {
         Server server = null;
 
         try {
-            ConfigurationManager.loadCascadedPropertiesFromResources("application");
+            ConfigurationManager.loadCascadedPropertiesFromResources(configName);
             Injector injector = InjectorBuilder.fromModule(new MantisAPIModule()).createInjector();
             BaseServerStartup serverStartup = injector.getInstance(BaseServerStartup.class);
             server = serverStartup.server();
