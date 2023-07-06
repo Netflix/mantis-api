@@ -45,7 +45,7 @@ ext {
     jsonVersion = '20160810'
     junitVersion = '4.10'
     lombokVersion = '1.18.10'
-    mantisVersion = '2.0.7'
+    mantisVersion = '2.0.45'
     mockitoVersion = '1.9.5'
     s3Version = '1.11.566'
     servletApiVersion = '3.1.0'
@@ -95,6 +95,8 @@ dependencies {
     }
     implementation "org.apache.commons:commons-lang3:3.+"
     implementation "commons-configuration:commons-configuration:1.8"
+    compileOnly "com.netflix.ribbon:ribbon-loadbalancer:2.4.4"
+    compileOnly "com.netflix.ribbon:ribbon-eureka:2.4.4"
     api "io.mantisrx:mantis-discovery-proto:$mantisVersion"
     api "io.mantisrx:mantis-client:$mantisVersion"
     api "io.mantisrx:mantis-runtime:$mantisVersion"
