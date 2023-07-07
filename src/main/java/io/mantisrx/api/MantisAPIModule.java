@@ -26,6 +26,9 @@ import com.netflix.zuul.filters.FilterRegistry;
 import com.netflix.zuul.filters.MutableFilterRegistry;
 import com.netflix.zuul.groovy.GroovyCompiler;
 import com.netflix.zuul.groovy.GroovyFileFilter;
+import io.mantisrx.api.services.AppStreamDiscoveryService;
+import io.mantisrx.api.services.AppStreamStore;
+import io.mantisrx.api.services.ConfigurationBasedAppStreamStore;
 import io.mantisrx.server.core.Configurations;
 import io.mantisrx.server.core.CoreConfiguration;
 import io.mantisrx.server.master.client.HighAvailabilityServices;
@@ -57,6 +60,8 @@ import io.mantisrx.api.tunnel.MantisCrossRegionalClient;
 import io.mantisrx.api.tunnel.NoOpCrossRegionalClient;
 import io.mantisrx.client.MantisClient;
 import io.mantisrx.server.worker.client.WorkerMetricsClient;
+import io.mantisrx.shaded.org.apache.curator.framework.listen.Listenable;
+import io.mantisrx.shaded.org.apache.curator.framework.listen.ListenerContainer;
 import org.apache.commons.configuration.AbstractConfiguration;
 import rx.Scheduler;
 import rx.schedulers.Schedulers;
@@ -140,6 +145,31 @@ public class MantisAPIModule extends AbstractModule {
                 TimeUnit.SECONDS, new LinkedBlockingQueue<>());
         ThreadPoolMonitor.attach(registry, executor, "io-thread-pool");
         return Schedulers.from(executor);
+    }
+
+    @Provides
+    @Singleton
+    ConfigurationBasedAppStreamStore.ConfigSource provideConfigSource(AbstractConfiguration configuration) {
+        return new ConfigurationBasedAppStreamStore.ConfigSource() {
+            @Override
+            public Listenable<ConfigurationBasedAppStreamStore.ConfigurationChangeListener> getListenable() {
+                return new ListenerContainer<>();
+            }
+
+            @Override
+            public String get() {
+                return String.join(",", configuration.getStringArray("mreAppJobClusterMap"));
+            }
+        };
+    }
+
+    @Provides
+    @Singleton
+    AppStreamDiscoveryService provideAppStreamDiscoveryService(MantisClient mantisClient,
+                                                               @Named("io-scheduler") Scheduler ioScheduler,
+                                                               ConfigurationBasedAppStreamStore.ConfigSource configSource) {
+        AppStreamStore appStreamStore = new ConfigurationBasedAppStreamStore(configSource);
+        return new AppStreamDiscoveryService(mantisClient, ioScheduler, appStreamStore);
     }
 
     @Provides @Singleton
