@@ -51,10 +51,6 @@ public class Util {
         return System.getenv("EC2_REGION");
     }
 
-    public static boolean isAllRegion(String region) {
-        return region != null && region.trim().equalsIgnoreCase("all");
-    }
-
     //
     // Query Params
     //
