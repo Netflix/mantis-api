@@ -46,7 +46,7 @@ ext {
     junitVersion = '4.10'
     lombokVersion = '1.18.10'
     mantisVersion = '2.0.45'
-    mockitoVersion = '1.9.5'
+    mockitoVersion = '3.+'
     s3Version = '1.11.566'
     servletApiVersion = '3.1.0'
     spectatorVersion = '0.92.+'
@@ -109,6 +109,7 @@ dependencies {
     annotationProcessor "org.projectlombok:lombok:$lombokVersion"
 
     testImplementation "junit:junit:$junitVersion"
+    testImplementation "org.mockito:mockito-core:$mockitoVersion"
     testImplementation"org.projectlombok:lombok:$lombokVersion"
     testAnnotationProcessor "org.projectlombok:lombok:$lombokVersion"
 }

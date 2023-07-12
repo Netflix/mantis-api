@@ -16,42 +16,16 @@
 
 package io.mantisrx.api.tunnel;
 
-import static io.mantisrx.api.Constants.OriginRegionTagName;
-import static io.mantisrx.api.Constants.TagNameValDelimiter;
-import static io.mantisrx.api.Constants.TagsParamName;
-import static io.mantisrx.api.Constants.TunnelPingMessage;
-import static io.mantisrx.api.Constants.TunnelPingParamName;
-import static io.mantisrx.api.Util.getLocalRegion;
-
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
-
+import com.google.common.annotations.VisibleForTesting;
 import com.netflix.config.DynamicIntProperty;
 import com.netflix.config.DynamicStringProperty;
 import com.netflix.spectator.api.Counter;
 import com.netflix.zuul.netty.SpectatorUtils;
-
-import io.mantisrx.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import io.mantisrx.api.Constants;
 import io.mantisrx.api.Util;
 import io.mantisrx.api.push.ConnectionBroker;
 import io.mantisrx.api.push.PushConnectionDetails;
+import io.mantisrx.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -76,9 +50,34 @@ import mantis.io.reactivex.netty.channel.StringTransformer;
 import mantis.io.reactivex.netty.protocol.http.client.HttpClient;
 import mantis.io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import mantis.io.reactivex.netty.protocol.http.client.HttpClientResponse;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import rx.Observable;
 import rx.Scheduler;
 import rx.Subscription;
+
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+
+import static io.mantisrx.api.Constants.OriginRegionTagName;
+import static io.mantisrx.api.Constants.TagNameValDelimiter;
+import static io.mantisrx.api.Constants.TagsParamName;
+import static io.mantisrx.api.Constants.TunnelPingMessage;
+import static io.mantisrx.api.Constants.TunnelPingParamName;
+import static io.mantisrx.api.Util.getLocalRegion;
 
 @Slf4j
 public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
@@ -96,17 +95,6 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
     private final DynamicIntProperty queueCapacity = new DynamicIntProperty("io.mantisrx.api.push.queueCapacity", 1000);
     private final DynamicIntProperty writeIntervalMillis = new DynamicIntProperty("io.mantisrx.api.push.writeIntervalMillis", 50);
     private final DynamicStringProperty tunnelRegionsProperty = new DynamicStringProperty("io.mantisrx.api.tunnel.regions", Util.getLocalRegion());
-
-    private List<String> getTunnelRegions() {
-        return parseRegionCsv(tunnelRegionsProperty.get());
-    }
-
-    private List<String> parseRegionCsv(String regionCsv) {
-        return Arrays.stream(regionCsv.split(","))
-                .map(String::trim)
-                .map(String::toLowerCase)
-                .collect(Collectors.toList());
-    }
 
     public CrossRegionHandler(
             List<String> pushPrefixes,
@@ -165,7 +153,20 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
                 .addListener(__ -> ctx.close());
     }
 
-    private List<String> parseRegionsInUri(String uri) {
+    @VisibleForTesting
+    List<String> getTunnelRegions() {
+        return parseRegionCsv(tunnelRegionsProperty.get());
+    }
+
+    private static List<String> parseRegionCsv(String regionCsv) {
+        return Arrays.stream(regionCsv.split(","))
+                .map(String::trim)
+                .map(String::toLowerCase)
+                .collect(Collectors.toList());
+    }
+
+    @VisibleForTesting
+    List<String> parseRegionsInUri(String uri) {
         final String regionString = getRegion(uri);
         if (isAllRegion(regionString)) {
             return getTunnelRegions();
