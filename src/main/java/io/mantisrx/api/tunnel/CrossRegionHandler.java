@@ -181,6 +181,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
         List<String> regions = parseRegionsInUri(request.uri());
 
         String uri = getTail(request.uri());
+        log.info("Relaying GET URI {} to {} (original uri {}).", uri, regions, request.uri());
         Observable.from(regions)
                 .flatMap(region -> {
                     final AtomicReference<Throwable> ref = new AtomicReference<>();
@@ -227,9 +228,9 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
     private void handleRestPost(ChannelHandlerContext ctx, FullHttpRequest request) {
         String uri = getTail(request.uri());
-        List<String> regions = parseRegionsInUri(uri);
+        List<String> regions = parseRegionsInUri(request.uri());
 
-        log.info("Relaying POST URI {} to {}.", uri, regions);
+        log.info("Relaying POST URI {} to {} (original uri {}).", uri, regions, request.uri());
         final AtomicReference<Throwable> ref = new AtomicReference<>();
 
         String content = request.content().toString(Charset.defaultCharset());
@@ -291,7 +292,7 @@ public class CrossRegionHandler extends SimpleChannelInboundHandler<FullHttpRequ
         final String uri = uriWithTunnelParamsAdded(getTail(request.uri()));
         List<String> regions = parseRegionsInUri(request.uri());
 
-        log.info("Initiating remote SSE connection to {} in {}.", uri, regions);
+        log.info("Initiating remote SSE connection to {} in {} (original URI: {}).", uri, regions, request.uri());
         PushConnectionDetails pcd = PushConnectionDetails.from(uri, regions);
 
         String[] tags = Util.getTaglist(request.uri(), pcd.target, getRegion(request.uri()));
