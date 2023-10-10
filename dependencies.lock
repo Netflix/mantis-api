@@ -33,19 +33,19 @@
             "locked": "1.8"
         },
         "io.mantisrx:mantis-client": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mantis-control-plane-client": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mantis-discovery-proto": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mantis-runtime": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mantis-server-worker-client": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mql-jvm": {
             "locked": "3.4.0"
@@ -54,7 +54,7 @@
             "locked": "0.10.2"
         },
         "org.apache.commons:commons-lang3": {
-            "locked": "3.12.0"
+            "locked": "3.13.0"
         },
         "org.projectlombok:lombok": {
             "locked": "1.18.10"
@@ -88,19 +88,19 @@
             "locked": "1.8"
         },
         "io.mantisrx:mantis-client": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mantis-control-plane-client": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mantis-discovery-proto": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mantis-runtime": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mantis-server-worker-client": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mql-jvm": {
             "locked": "3.4.0"
@@ -109,7 +109,7 @@
             "locked": "0.10.2"
         },
         "org.apache.commons:commons-lang3": {
-            "locked": "3.12.0"
+            "locked": "3.13.0"
         },
         "org.projectlombok:lombok": {
             "locked": "1.18.10"
@@ -143,19 +143,19 @@
             "locked": "1.8"
         },
         "io.mantisrx:mantis-client": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mantis-control-plane-client": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mantis-discovery-proto": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mantis-runtime": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mantis-server-worker-client": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mql-jvm": {
             "locked": "3.4.0"
@@ -167,7 +167,10 @@
             "locked": "4.13.1"
         },
         "org.apache.commons:commons-lang3": {
-            "locked": "3.12.0"
+            "locked": "3.13.0"
+        },
+        "org.mockito:mockito-core": {
+            "locked": "3.12.4"
         },
         "org.projectlombok:lombok": {
             "locked": "1.18.10"
@@ -196,19 +199,19 @@
             "locked": "1.8"
         },
         "io.mantisrx:mantis-client": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mantis-control-plane-client": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mantis-discovery-proto": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mantis-runtime": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mantis-server-worker-client": {
-            "locked": "2.0.45"
+            "locked": "2.0.94"
         },
         "io.mantisrx:mql-jvm": {
             "locked": "3.4.0"
@@ -220,7 +223,10 @@
             "locked": "4.13.1"
         },
         "org.apache.commons:commons-lang3": {
-            "locked": "3.12.0"
+            "locked": "3.13.0"
+        },
+        "org.mockito:mockito-core": {
+            "locked": "3.12.4"
         },
         "org.projectlombok:lombok": {
             "locked": "1.18.10"
