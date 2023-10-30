@@ -61,7 +61,7 @@ import io.mantisrx.api.tunnel.NoOpCrossRegionalClient;
 import io.mantisrx.client.MantisClient;
 import io.mantisrx.server.worker.client.WorkerMetricsClient;
 import io.mantisrx.shaded.org.apache.curator.framework.listen.Listenable;
-import io.mantisrx.shaded.org.apache.curator.framework.listen.ListenerContainer;
+import io.mantisrx.shaded.org.apache.curator.framework.listen.StandardListenerManager;
 import org.apache.commons.configuration.AbstractConfiguration;
 import rx.Scheduler;
 import rx.schedulers.Schedulers;
@@ -153,7 +153,7 @@ public class MantisAPIModule extends AbstractModule {
         return new ConfigurationBasedAppStreamStore.ConfigSource() {
             @Override
             public Listenable<ConfigurationBasedAppStreamStore.ConfigurationChangeListener> getListenable() {
-                return new ListenerContainer<>();
+                return StandardListenerManager.standard();
             }
 
             @Override
