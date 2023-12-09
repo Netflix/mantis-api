@@ -45,7 +45,7 @@ ext {
     jsonVersion = '20160810'
     junitVersion = '4.10'
     lombokVersion = '1.18.10'
-    mantisVersion = '2.0.99'
+    mantisVersion = '2.0.98'
     mockitoVersion = '3.+'
     s3Version = '1.11.566'
     servletApiVersion = '3.1.0'
