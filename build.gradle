@@ -26,6 +26,7 @@ buildscript {
     
     dependencies {
         classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:9.1.0'
+        classpath 'com.bmuschko:gradle-docker-plugin:6.7.0'
     }
 }
 
@@ -34,6 +35,7 @@ apply plugin: 'idea'
 apply plugin: 'java-library'
 apply plugin: 'pmd'
 apply plugin: 'application'
+apply plugin: 'com.bmuschko.docker-java-application'
 
 ext {
     archaiusVersion = '2.3.+'
@@ -145,6 +147,38 @@ run {
         jvmArgs "-Darchaius.deployment.environment=benchmark"
     }
 }
+
+def installDir = file("${buildDir}/install")
+def resourcesDir = file("${buildDir}/resources")
+def ci = System.getenv('GITHUB_ACTIONS')
+def imageRepository = ci ? 'netflixoss' : 'localhost:5001/netflixoss'
+
+docker {
+    dockerSyncBuildContext {
+        from installDir
+        from resourcesDir
+    }
+
+    dockerCreateDockerfile {
+        // root directory to store all the files
+        instruction 'WORKDIR /apps/mantis/mantis-api'
+        // copy the files from the build context to the image
+        instruction 'COPY mantis-api/bin/* /apps/mantis/mantis-api/bin/'
+        instruction 'COPY mantis-api/lib/* /apps/mantis/mantis-api/lib/'
+        instruction 'COPY resources/* conf/'
+        entryPoint 'bin/mantis-api', '-p', 'api-docker.properties'
+    }
+
+    javaApplication {
+        baseImage = 'azul/zulu-openjdk:8-latest'
+        maintainer = 'Mantis Developers "mantis-oss-dev@netflix.com"'
+        mainClassName = 'io.mantisrx.api.Bootstrap'
+        images = ["$imageRepository/mantisapi:latest"]
+        ports = [5050]
+    }
+}
+
+dockerSyncBuildContext.dependsOn(installDist)
 
 pmd {
     ignoreFailures = true
