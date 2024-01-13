@@ -22,11 +22,13 @@ buildscript {
         maven {
             url "https://plugins.gradle.org/m2/"
         }
+        gradlePluginPortal()
     }
     
     dependencies {
         classpath 'com.netflix.nebula:gradle-netflixoss-project-plugin:9.1.0'
         classpath 'com.bmuschko:gradle-docker-plugin:6.7.0'
+        classpath 'com.palantir.gradle.gitversion:gradle-git-version:3.0.0'
     }
 }
 
@@ -36,6 +38,7 @@ apply plugin: 'java-library'
 apply plugin: 'pmd'
 apply plugin: 'application'
 apply plugin: 'com.bmuschko.docker-java-application'
+apply plugin: 'com.palantir.git-version'
 
 ext {
     archaiusVersion = '2.3.+'
@@ -152,6 +155,7 @@ def installDir = file("${buildDir}/install")
 def resourcesDir = file("${buildDir}/resources")
 def ci = System.getenv('GITHUB_ACTIONS')
 def imageRepository = ci ? 'netflixoss' : 'localhost:5001/netflixoss'
+def dockerVersionTag = gitVersion()
 
 docker {
     dockerSyncBuildContext {
@@ -173,7 +177,7 @@ docker {
         baseImage = 'azul/zulu-openjdk:8-latest'
         maintainer = 'Mantis Developers "mantis-oss-dev@netflix.com"'
         mainClassName = 'io.mantisrx.api.Bootstrap'
-        images = ["$imageRepository/mantisapi:latest"]
+        images = ["$imageRepository/mantisapi:latest", "$imageRepository/mantisapi:$dockerVersionTag"]
         ports = [5050]
     }
 }
