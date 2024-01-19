@@ -3,7 +3,7 @@ name: "Publish Docker images to Docker Registry"
 on:
   pull_request:
     paths:
-      - ./Dockerfile
+      - ./build.gradle
       - .github/workflows/push-docker-image.yml
   push:
     tags:
@@ -25,8 +25,12 @@ jobs:
     steps:
       - name: Checkout PR
         uses: actions/checkout@v3
+      - name: Setup jdk
+        uses: actions/setup-java@v1
+        with:
+          java-version: 8
 
-      - name: Build executable
+      - name: Generate dockerfiles
         uses: gradle/gradle-build-action@v2
         env:
           NETFLIX_OSS_SIGNING_KEY: ${{ secrets.ORG_SIGNING_KEY }}
@@ -34,7 +38,7 @@ jobs:
           NETFLIX_OSS_REPO_USERNAME: ${{ secrets.ORG_NETFLIXOSS_USERNAME }}
           NETFLIX_OSS_REPO_PASSWORD: ${{ secrets.ORG_NETFLIXOSS_PASSWORD }}
         with:
-          arguments: installDist
+          arguments: --info --stacktrace :dockerCreateDockerfile
 
       - name: Fetch tags
         run: |
@@ -70,8 +74,8 @@ jobs:
       - name: Build and push Docker images
         uses: docker/build-push-action@v3
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./build/docker
+          file: ./build/docker/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
