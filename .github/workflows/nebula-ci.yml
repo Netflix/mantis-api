@@ -20,8 +20,6 @@ jobs:
       - run: |
           git config --global user.name "Netflix OSS Maintainers"
           git config --global user.email "netflixoss@netflix.com"
-        name: Setup git user
-
       - name: Setup jdk
         uses: actions/setup-java@v1
         with:
