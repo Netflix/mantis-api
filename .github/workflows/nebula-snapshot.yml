@@ -13,8 +13,8 @@ jobs:
         with:
           fetch-depth: 0
       - run: |
-          git config --global user.name "Netflix OSS Maintainers"
-          git config --global user.email "netflixoss@netflix.com"
+          git config --global user.name "Mantis OSS Maintainers"
+          git config --global user.email "mantis-oss-dev@googlegroups.com"
       - name: Set up JDK
         uses: actions/setup-java@v1
         with:
