@@ -116,7 +116,7 @@ public class Util {
         final int limit = retries == Integer.MAX_VALUE ? retries : retries + 1;
         return attempts -> attempts
                 .zipWith(Observable.range(1, limit), (t1, integer) -> {
-                    logger.warn("Caught exception connecting for {}.", name, t1);
+                    logger.warn(String.format("Caught exception connecting for %s.", name), t1);
                     return new ImmutablePair<Throwable, Integer>(t1, integer);
                 })
                 .flatMap(pair -> {
