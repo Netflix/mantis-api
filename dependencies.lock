@@ -1,7 +1,7 @@
 {
     "annotationProcessor": {
         "org.projectlombok:lombok": {
-            "locked": "1.18.10"
+            "locked": "1.18.30"
         }
     },
     "compileClasspath": {
@@ -57,12 +57,12 @@
             "locked": "3.13.0"
         },
         "org.projectlombok:lombok": {
-            "locked": "1.18.10"
+            "locked": "1.18.30"
         }
     },
     "pmd": {
         "net.sourceforge.pmd:pmd-java": {
-            "locked": "6.26.0"
+            "locked": "6.55.0"
         }
     },
     "runtimeClasspath": {
@@ -112,12 +112,12 @@
             "locked": "3.13.0"
         },
         "org.projectlombok:lombok": {
-            "locked": "1.18.10"
+            "locked": "1.18.30"
         }
     },
     "testAnnotationProcessor": {
         "org.projectlombok:lombok": {
-            "locked": "1.18.10"
+            "locked": "1.18.30"
         }
     },
     "testCompileClasspath": {
@@ -173,7 +173,7 @@
             "locked": "3.12.4"
         },
         "org.projectlombok:lombok": {
-            "locked": "1.18.10"
+            "locked": "1.18.30"
         }
     },
     "testRuntimeClasspath": {
@@ -229,7 +229,7 @@
             "locked": "3.12.4"
         },
         "org.projectlombok:lombok": {
-            "locked": "1.18.10"
+            "locked": "1.18.30"
         }
     }
 }
