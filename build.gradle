@@ -56,7 +56,7 @@ ext {
     servletApiVersion = '3.1.0'
     spectatorVersion = '0.92.+'
     vavrVersion = '0.10.2'
-    zuulVersion = '2.3.0'
+    zuulVersion = '3.3.8'
 }
 
 group = 'io.mantisrx'
